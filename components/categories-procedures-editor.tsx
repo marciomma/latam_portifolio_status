@@ -36,11 +36,22 @@ export function CategoriesProceduresEditor({ onUpdate }: CategoriesProceduresEdi
     const loadData = async () => {
       try {
         setIsLoading(true)
-        const categoriesData = await PortfolioService.getCategories()
         const proceduresData = await PortfolioService.getProcedures()
+        setProcedures(proceduresData)
+        setCategories(
+          Array.from(
+            new Set(proceduresData.map((proc) => proc.category)),
+          ).map((cat) => ({
+            id: cat,
+            name: cat,
+            description: "", // opcional
+            isActive: true,
+          }))
+        )
+
         const productTypesData = await PortfolioService.getProductTypes()
 
-        setCategories(categoriesData)
+        setCategories(categories)
         setProcedures(proceduresData)
         setProductTypes(productTypesData)
       } catch (err) {
@@ -93,8 +104,9 @@ export function CategoriesProceduresEditor({ onUpdate }: CategoriesProceduresEdi
       const newProcedureItem = {
         id: `procedure-${Date.now()}`,
         name: newProcedure.name,
-        categoryId: newProcedure.categoryId,
+        category: newProcedure.categoryId,
         description: newProcedure.description,
+        isActive: true,
       }
 
       setProcedures([...procedures, newProcedureItem])
@@ -127,6 +139,7 @@ export function CategoriesProceduresEditor({ onUpdate }: CategoriesProceduresEdi
         name: newProductType.name,
         procedureId: newProductType.procedureId,
         description: newProductType.description,
+        isActive: true,
       }
 
       setProductTypes([...productTypes, newProductTypeItem])
@@ -220,7 +233,7 @@ export function CategoriesProceduresEditor({ onUpdate }: CategoriesProceduresEdi
           </div>
 
           {procedures.map((procedure) => {
-            const category = categories.find((c) => c.id === procedure.categoryId)
+            const category = categories.find((c) => c.id === procedure.category)
             return (
               <Card key={procedure.id} className="mb-4">
                 <CardContent className="p-4">
@@ -242,7 +255,7 @@ export function CategoriesProceduresEditor({ onUpdate }: CategoriesProceduresEdi
           </div>
 
           {productTypes.map((productType) => {
-            const procedure = procedures.find((p) => p.id === productType.procedureId)
+            const procedure = procedures.find((p) => p.id === productType.id)
             return (
               <Card key={productType.id} className="mb-4">
                 <CardContent className="p-4">
