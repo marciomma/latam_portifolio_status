@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PortfolioService } from "@/services/portfolio-service"
-import type { Country, Product, Status } from "@/types/database"
+import type { Country, Product, Status, StatusPortfolio } from "@/types/database"
 
+// Modificar a interface PortfolioEditorProps para incluir onUpdate
 interface PortfolioEditorProps {
   countries: Country[]
   products: Product[]
   statuses: Status[]
+  onUpdate: () => Promise<void>
 }
 
 type EditablePortfolioItem = {
@@ -29,7 +31,7 @@ type EditablePortfolioItem = {
   isSelected?: boolean
 }
 
-export function PortfolioEditor({ countries, products, statuses }: PortfolioEditorProps) {
+export function PortfolioEditor({ countries, products, statuses, onUpdate }: PortfolioEditorProps) {
   const [portfolioItems, setPortfolioItems] = useState<EditablePortfolioItem[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newItem, setNewItem] = useState<{ productId: string; countryId: string; statusId: string }>({
@@ -39,26 +41,40 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
   })
   const [successMessage, setSuccessMessage] = useState("")
   const [selectAll, setSelectAll] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Load initial data
   useEffect(() => {
-    // In a real app, this would fetch from an API
-    const statusPortfolios = PortfolioService.getStatusPortfolios()
+    const loadData = async () => {
+      try {
+        setIsLoading(true)
+        // In a real app, this would fetch from an API
+        const statusPortfolios = await PortfolioService.getStatusPortfolios()
 
-    const items: EditablePortfolioItem[] = statusPortfolios.map((sp) => {
-      const product = products.find((p) => p.id === sp.productId)
-      return {
-        id: sp.id,
-        productId: sp.productId,
-        productName: product?.name || "Produto Desconhecido",
-        countryId: sp.countryId,
-        statusId: sp.statusId,
-        isModified: false,
-        isSelected: false,
+        const items: EditablePortfolioItem[] = statusPortfolios.map((sp: StatusPortfolio) => {
+          const product = products.find((p) => p.id === sp.productId)
+          return {
+            id: sp.id,
+            productId: sp.productId,
+            productName: product?.name || "Produto Desconhecido",
+            countryId: sp.countryId,
+            statusId: sp.statusId,
+            isModified: false,
+            isSelected: false,
+          }
+        })
+
+        setPortfolioItems(items)
+      } catch (err) {
+        console.error("Error loading portfolio items:", err)
+        setError("Failed to load portfolio items")
+      } finally {
+        setIsLoading(false)
       }
-    })
+    }
 
-    setPortfolioItems(items)
+    loadData()
   }, [products])
 
   const handleStatusChange = (itemId: string, statusId: string) => {
@@ -142,41 +158,85 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
     setNewItem({ productId: "", countryId: "", statusId: "" })
   }
 
-  const handleDeleteSelected = () => {
+  // Modificar a função handleDeleteSelected para usar onUpdate
+  const handleDeleteSelected = async () => {
     const selectedItems = portfolioItems.filter((item) => item.isSelected)
     if (selectedItems.length === 0) return
 
-    // In a real app, this would call an API to delete the items
-    setPortfolioItems(portfolioItems.filter((item) => !item.isSelected))
-    setSuccessMessage(`${selectedItems.length} registro(s) excluído(s) com sucesso`)
-    setSelectAll(false)
+    try {
+      // In a real app, this would call an API to delete the items
+      setPortfolioItems(portfolioItems.filter((item) => !item.isSelected))
+      setSuccessMessage(`${selectedItems.length} registro(s) excluído(s) com sucesso`)
+      setSelectAll(false)
 
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
+      // Call onUpdate to refresh data
+      if (onUpdate) {
+        await onUpdate()
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 3000)
+    } catch (err) {
+      console.error("Error deleting items:", err)
+      setError("Failed to delete items")
+    }
   }
 
-  const handleSave = () => {
+  // Modificar a função handleSave para usar onUpdate
+  const handleSave = async () => {
     const modifiedItems = portfolioItems.filter((item) => item.isModified)
     if (modifiedItems.length === 0) return
 
-    // In a real app, this would call an API to save the changes
-    // For now, just mark them as not modified
-    setPortfolioItems(
-      portfolioItems.map((item) => ({
-        ...item,
-        isModified: false,
-        isNew: false,
-      })),
+    try {
+      // In a real app, this would call an API to save the changes
+      // For now, just mark them as not modified
+      setPortfolioItems(
+        portfolioItems.map((item) => ({
+          ...item,
+          isModified: false,
+          isNew: false,
+        })),
+      )
+
+      setSuccessMessage(`${modifiedItems.length} registro(s) salvo(s) com sucesso`)
+
+      // Call onUpdate to refresh data
+      if (onUpdate) {
+        await onUpdate()
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 3000)
+    } catch (err) {
+      console.error("Error saving items:", err)
+      setError("Failed to save items")
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <span className="ml-2">Carregando...</span>
+      </div>
     )
+  }
 
-    setSuccessMessage(`${modifiedItems.length} registro(s) salvo(s) com sucesso`)
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
+  if (error) {
+    return (
+      <Card className="border-red-500">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-red-600">
+            <p>{error}</p>
+            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

@@ -1,4 +1,5 @@
 "use client"
+
 import { useState, useEffect } from "react"
 import { Check, Filter, Save, X } from "lucide-react"
 
@@ -14,6 +15,7 @@ interface StatusUpdateFormProps {
   countries: Country[]
   procedures: Procedure[]
   statuses: Status[]
+  onUpdate: () => Promise<void>
 }
 
 type EditableItem = PortfolioStatusView & {
@@ -21,14 +23,16 @@ type EditableItem = PortfolioStatusView & {
   modifiedStatuses?: Record<string, string>
 }
 
-export function StatusUpdateForm({ portfolioData, countries, procedures, statuses }: StatusUpdateFormProps) {
+export function StatusUpdateForm({ portfolioData, countries, procedures, statuses, onUpdate }: StatusUpdateFormProps) {
   const [countryFilter, setCountryFilter] = useState<string>("all")
   const [procedureFilter, setProcedureFilter] = useState<string>("all")
   const [productTypeFilter, setProductTypeFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [editableData, setEditableData] = useState<EditableItem[]>([])
   const [successMessage, setSuccessMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
   const [showFilters, setShowFilters] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Initialize editable data
   useEffect(() => {
@@ -130,56 +134,79 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
     }
   }
 
-  const handleSave = () => {
-    // Collect all updates
-    const updates: {
-      productId: string
-      countryId: string
-      statusId: string
-    }[] = []
+  const handleSave = async () => {
+    // Clear previous messages
+    setSuccessMessage("")
+    setErrorMessage("")
+    setIsSubmitting(true)
 
-    editableData
-      .filter((item) => item.isModified)
-      .forEach((item) => {
-        if (item.modifiedStatuses) {
-          Object.entries(item.modifiedStatuses).forEach(([countryId, statusId]) => {
-            updates.push({
-              productId: item.productId,
-              countryId,
-              statusId,
+    try {
+      // Collect all updates
+      const updates: {
+        productId: string
+        countryId: string
+        statusId: string
+      }[] = []
+
+      editableData
+        .filter((item) => item.isModified)
+        .forEach((item) => {
+          if (item.modifiedStatuses) {
+            Object.entries(item.modifiedStatuses).forEach(([countryId, statusId]) => {
+              updates.push({
+                productId: item.productId,
+                countryId,
+                statusId,
+              })
             })
-          })
+          }
+        })
+
+      // Save updates
+      if (updates.length > 0) {
+        const success = await PortfolioService.bulkUpdateStatus(updates)
+
+        if (success) {
+          // Show success message
+          setSuccessMessage(`Status atualizado com sucesso para ${updates.length} itens`)
+
+          // Reset modified flags
+          setEditableData(
+            editableData.map((item) => ({
+              ...item,
+              isModified: false,
+              modifiedStatuses: {},
+            })),
+          )
+
+          // Refresh data
+          if (onUpdate) {
+            await onUpdate()
+          }
+        } else {
+          setErrorMessage("Erro ao atualizar status. Tente novamente.")
         }
-      })
+      }
+    } catch (error) {
+      console.error("Error saving status updates:", error)
+      setErrorMessage("Erro ao atualizar status. Tente novamente.")
+    } finally {
+      setIsSubmitting(false)
 
-    // Save updates
-    if (updates.length > 0) {
-      PortfolioService.bulkUpdateStatus(updates)
-
-      // Show success message
-      setSuccessMessage(`Status atualizado com sucesso para ${updates.length} itens`)
-
-      // Reset modified flags
-      setEditableData(
-        editableData.map((item) => ({
-          ...item,
-          isModified: false,
-          modifiedStatuses: {},
-        })),
-      )
+      // Clear success message after 3 seconds
+      if (successMessage) {
+        setTimeout(() => {
+          setSuccessMessage("")
+        }, 3000)
+      }
     }
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
   }
 
-  const getStatusColor = (status: Status, isModified = false) => {
+  const getStatusColor = (status: Status | undefined, isModified: boolean | string | undefined) => {
     if (isModified) {
       return "#E5F6FF" // Light blue for modified items
     }
-    return status.color
+    return status?.color || "#FFFFFF"
   }
 
   const resetFilters = () => {
@@ -191,18 +218,7 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Atualizar Status de Produto</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2"
-        >
-          <Filter className="h-4 w-4" />
-          {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
-        </Button>
-      </div>
+      <h2 className="mb-6 text-xl font-semibold">Atualização de Status</h2>
 
       {successMessage && (
         <Card className="mb-6 border-green-500">
@@ -214,6 +230,30 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
           </CardContent>
         </Card>
       )}
+
+      {errorMessage && (
+        <Card className="mb-6 border-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <X className="h-5 w-5" />
+              <p>{errorMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="text-lg font-medium">Filtros</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center gap-2"
+        >
+          {showFilters ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+          {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
+        </Button>
+      </div>
 
       {showFilters && (
         <Card className="mb-6">
@@ -260,8 +300,8 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
                     <SelectValue placeholder="Filtrar por tipo de produto" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os Tipos de Produto</SelectItem>
-                    {productTypes.map((type) => (
+                    <SelectItem value="all">Todos os Tipos</SelectItem>
+                    {productTypes.map((type: any) => (
                       <SelectItem key={type.id} value={type.id}>
                         {type.name}
                       </SelectItem>
@@ -278,21 +318,18 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os Status</SelectItem>
-                    {statuses
-                      .filter((s) => s.code)
-                      .map((status) => (
-                        <SelectItem key={status.id} value={status.id}>
-                          {status.name}
-                        </SelectItem>
-                      ))}
+                    {statuses.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="mt-4 flex justify-end">
-              <Button variant="outline" size="sm" onClick={resetFilters} className="flex items-center gap-1">
-                <X className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={resetFilters}>
                 Limpar Filtros
               </Button>
             </div>
@@ -307,133 +344,68 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
               <TableHead className="border w-[120px] bg-gray-100">Categoria</TableHead>
               <TableHead className="border w-[150px] bg-gray-100">Procedimento</TableHead>
               <TableHead className="border w-[150px] bg-gray-100">Tipo de Produto</TableHead>
+              <TableHead className="border w-[300px] bg-gray-100">Produto</TableHead>
+              <TableHead className="border w-[100px] bg-gray-100">Tier</TableHead>
+              <TableHead className="border w-[120px] bg-gray-100">Ciclo de Vida</TableHead>
               {countries.map((country) => (
-                <TableHead key={country.id} colSpan={2} className="border text-center bg-gray-100">
+                <TableHead key={country.id} className="border min-w-[150px] bg-gray-100 text-center">
                   {country.name}
                 </TableHead>
               ))}
-            </TableRow>
-            <TableRow>
-              {countries.flatMap((country) => [
-                <TableHead key={`${country.id}-tier1`} className="border text-center bg-gray-50 text-xs">
-                  Tier 1
-                </TableHead>,
-                <TableHead key={`${country.id}-tier2`} className="border text-center bg-gray-50 text-xs">
-                  Tier 2
-                </TableHead>,
-              ])}
             </TableRow>
           </TableHeader>
           <TableBody>
             {Object.entries(groupedData).length > 0 ? (
               Object.entries(groupedData).flatMap(([category, procedures]) =>
                 Object.entries(procedures).flatMap(([procedure, productTypes]) =>
-                  Object.entries(productTypes).map(([productType, items]) => {
-                    // Group items by tier
-                    const tier1Items = items.filter((item) => item.productTier === "Tier 1")
-                    const tier2Items = items.filter((item) => item.productTier === "Tier 2")
-
-                    return (
-                      <TableRow key={`${category}-${procedure}-${productType}`}>
+                  Object.entries(productTypes).flatMap(([productType, items]) =>
+                    items.map((item) => (
+                      <TableRow key={item.id} className={item.isModified ? "bg-blue-50" : ""}>
                         <TableCell className="border">{category}</TableCell>
                         <TableCell className="border">{procedure}</TableCell>
                         <TableCell className="border">{productType}</TableCell>
+                        <TableCell className="border">{item.product}</TableCell>
+                        <TableCell className="border text-center">{item.productTier}</TableCell>
+                        <TableCell className="border text-center">{item.productLifeCycle}</TableCell>
+                        {countries.map((country) => {
+                          const countryStatus = item.countryStatuses.find((cs) => cs.countryId === country.id)
+                          const currentStatusId = countryStatus?.statusId || ""
+                          const isModified = item.modifiedStatuses && Boolean(item.modifiedStatuses[country.id])
+                          const status = statuses.find((s) => s.id === currentStatusId)
 
-                        {countries.flatMap((country) => {
-                          // Tier 1 cell
-                          const tier1Item = tier1Items.find((item) => true) // Get first item if exists
-                          const tier1Status = tier1Item?.countryStatuses.find((cs) => cs.countryId === country.id)
-                          const tier1StatusObj = tier1Status
-                            ? statuses.find((s) => s.id === tier1Status.statusId) || statuses[4]
-                            : statuses[4]
-                          const tier1IsModified = tier1Item?.modifiedStatuses?.[country.id] !== undefined
-
-                          // Tier 2 cell
-                          const tier2Item = tier2Items.find((item) => true) // Get first item if exists
-                          const tier2Status = tier2Item?.countryStatuses.find((cs) => cs.countryId === country.id)
-                          const tier2StatusObj = tier2Status
-                            ? statuses.find((s) => s.id === tier2Status.statusId) || statuses[4]
-                            : statuses[4]
-                          const tier2IsModified = tier2Item?.modifiedStatuses?.[country.id] !== undefined
-
-                          return [
-                            // Tier 1 cell
-                            <TableCell
-                              key={`${category}-${procedure}-${productType}-${country.id}-tier1`}
-                              className="border p-0"
-                            >
-                              {tier1Item ? (
-                                <>
-                                  <Select
-                                    value={tier1Status?.statusId || "status-5"}
-                                    onValueChange={(value) => handleStatusChange(tier1Item.id, country.id, value)}
-                                  >
-                                    <SelectTrigger
-                                      className="border-0 h-10 rounded-none"
-                                      style={{ backgroundColor: getStatusColor(tier1StatusObj, tier1IsModified) }}
-                                    >
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {statuses.map((status) => (
-                                        <SelectItem key={status.id} value={status.id}>
-                                          {status.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <div className="text-xs text-center text-gray-700 pb-1">
-                                    {tier1Item.product} ({tier1Item.productLifeCycle})
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="h-10 flex items-center justify-center text-gray-400 text-xs">-</div>
-                              )}
-                            </TableCell>,
-
-                            // Tier 2 cell
-                            <TableCell
-                              key={`${category}-${procedure}-${productType}-${country.id}-tier2`}
-                              className="border p-0"
-                            >
-                              {tier2Item ? (
-                                <>
-                                  <Select
-                                    value={tier2Status?.statusId || "status-5"}
-                                    onValueChange={(value) => handleStatusChange(tier2Item.id, country.id, value)}
-                                  >
-                                    <SelectTrigger
-                                      className="border-0 h-10 rounded-none"
-                                      style={{ backgroundColor: getStatusColor(tier2StatusObj, tier2IsModified) }}
-                                    >
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {statuses.map((status) => (
-                                        <SelectItem key={status.id} value={status.id}>
-                                          {status.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <div className="text-xs text-center text-gray-700 pb-1">
-                                    {tier2Item.product} ({tier2Item.productLifeCycle})
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="h-10 flex items-center justify-center text-gray-400 text-xs">-</div>
-                              )}
-                            </TableCell>,
-                          ]
+                          return (
+                            <TableCell key={`${item.id}-${country.id}`} className="border p-1">
+                              <Select
+                                value={currentStatusId}
+                                onValueChange={(value) => handleStatusChange(item.id, country.id, value)}
+                              >
+                                <SelectTrigger
+                                  className="h-8"
+                                  style={{
+                                    backgroundColor: getStatusColor(status, isModified),
+                                  }}
+                                >
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statuses.map((status) => (
+                                    <SelectItem key={status.id} value={status.id}>
+                                      {status.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          )
                         })}
                       </TableRow>
-                    )
-                  }),
+                    )),
+                  ),
                 ),
               )
             ) : (
               <TableRow>
-                <TableCell colSpan={3 + countries.length * 2} className="h-24 text-center">
+                <TableCell colSpan={6 + countries.length} className="h-24 text-center">
                   Nenhum resultado encontrado. Tente ajustar seus filtros.
                 </TableCell>
               </TableRow>
@@ -442,9 +414,22 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
         </Table>
       </div>
 
-      <Button onClick={handleSave} className="w-full" disabled={!editableData.some((item) => item.isModified)}>
-        <Save className="mr-2 h-4 w-4" />
-        Salvar Alterações
+      <Button
+        onClick={handleSave}
+        className="w-full"
+        disabled={!editableData.some((item) => item.isModified) || isSubmitting}
+      >
+        {isSubmitting ? (
+          <>
+            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+            Salvando...
+          </>
+        ) : (
+          <>
+            <Save className="mr-2 h-4 w-4" />
+            Salvar Alterações
+          </>
+        )}
       </Button>
     </div>
   )

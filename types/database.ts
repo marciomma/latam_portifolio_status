@@ -76,3 +76,9 @@ export interface PortfolioStatusView {
     lastUpdated: string
   }[]
 }
+
+export interface Category {
+  id: string
+  name: string
+  description?: string
+}

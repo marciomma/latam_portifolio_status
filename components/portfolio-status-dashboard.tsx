@@ -12,28 +12,51 @@ import { CountryEditor } from "@/components/country-editor"
 import { ProductsEditor } from "@/components/products-editor"
 import { CategoriesProceduresEditor } from "@/components/categories-procedures-editor"
 import { PortfolioService } from "@/services/portfolio-service"
-import type { Country, PortfolioStatusView } from "@/types/database"
+import type { Country, PortfolioStatusView, Procedure, ProductType, Status } from "@/types/database"
 
 export function PortfolioStatusDashboard() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [countries, setCountries] = useState<Country[]>([])
   const [portfolioData, setPortfolioData] = useState<PortfolioStatusView[]>([])
+  const [procedures, setProcedures] = useState<Procedure[]>([])
+  const [productTypes, setProductTypes] = useState<ProductType[]>([])
+  const [statuses, setStatuses] = useState<Status[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const countriesData = PortfolioService.getCountries()
-        const portfolioViewData = PortfolioService.getPortfolioStatusView()
+        setIsLoading(true)
+        setError(null)
+
+        // Inicializar o banco de dados
+        const initResponse = await fetch("/api/init-db")
+        if (!initResponse.ok) {
+          throw new Error("Failed to initialize database")
+        }
+
+        // Carregar dados
+        const countriesData = await PortfolioService.getCountries()
+        const proceduresData = await PortfolioService.getProcedures()
+        const productTypesData = await PortfolioService.getProductTypes()
+        const statusesData = await PortfolioService.getStatuses()
+        const portfolioViewData = await PortfolioService.getPortfolioStatusView()
 
         setCountries(countriesData)
+        setProcedures(proceduresData)
+        setProductTypes(productTypesData)
+        setStatuses(statusesData)
         setPortfolioData(portfolioViewData)
+
+        // Selecionar todos os países por padrão
         setSelectedCountries(countriesData.map((c) => c.id))
-        setIsLoading(false)
-      } catch (error) {
-        console.error("Error loading data:", error)
+      } catch (err) {
+        console.error("Error loading data:", err)
+        setError("Failed to load data. Please try refreshing the page.")
+      } finally {
         setIsLoading(false)
       }
     }
@@ -57,8 +80,48 @@ export function PortfolioStatusDashboard() {
     setSelectedCountries([])
   }
 
+  // Function to refresh data after updates
+  const refreshData = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const portfolioViewData = await PortfolioService.getPortfolioStatusView()
+      const proceduresData = await PortfolioService.getProcedures()
+      const productTypesData = await PortfolioService.getProductTypes()
+
+      setPortfolioData(portfolioViewData)
+      setProcedures(proceduresData)
+      setProductTypes(productTypesData)
+    } catch (err) {
+      console.error("Error refreshing data:", err)
+      setError("Failed to refresh data. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+          <p>Loading data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 text-red-500 text-4xl">⚠️</div>
+          <p className="text-red-500 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -104,7 +167,7 @@ export function PortfolioStatusDashboard() {
             <div>
               <h3 className="mb-2 font-medium">Status Legend</h3>
               <div className="flex flex-wrap gap-3">
-                {PortfolioService.getStatuses()
+                {statuses
                   .filter((s) => s.code)
                   .map((status) => (
                     <div key={status.id} className="flex items-center gap-2">
@@ -134,8 +197,8 @@ export function PortfolioStatusDashboard() {
                 portfolioData={portfolioData}
                 countries={countries}
                 selectedCountryIds={selectedCountries}
-                procedures={PortfolioService.getProcedures()}
-                productTypes={PortfolioService.getProductTypes()}
+                procedures={procedures}
+                productTypes={productTypes}
               />
             </CardContent>
           </Card>
@@ -147,8 +210,9 @@ export function PortfolioStatusDashboard() {
               <StatusUpdateForm
                 portfolioData={portfolioData}
                 countries={countries}
-                procedures={PortfolioService.getProcedures()}
-                statuses={PortfolioService.getStatuses()}
+                procedures={procedures}
+                statuses={statuses}
+                onUpdate={refreshData}
               />
             </CardContent>
           </Card>
@@ -160,8 +224,9 @@ export function PortfolioStatusDashboard() {
               <CountryEditor
                 portfolioData={portfolioData}
                 countries={countries}
-                procedures={PortfolioService.getProcedures()}
-                statuses={PortfolioService.getStatuses()}
+                procedures={procedures}
+                statuses={statuses}
+                onUpdate={refreshData}
               />
             </CardContent>
           </Card>
@@ -170,10 +235,7 @@ export function PortfolioStatusDashboard() {
         <TabsContent value="products">
           <Card>
             <CardContent className="p-6">
-              <ProductsEditor
-                procedures={PortfolioService.getProcedures()}
-                productTypes={PortfolioService.getProductTypes()}
-              />
+              <ProductsEditor procedures={procedures} productTypes={productTypes} onUpdate={refreshData} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -181,7 +243,7 @@ export function PortfolioStatusDashboard() {
         <TabsContent value="categories-procedures">
           <Card>
             <CardContent className="p-6">
-              <CategoriesProceduresEditor />
+              <CategoriesProceduresEditor onUpdate={refreshData} />
             </CardContent>
           </Card>
         </TabsContent>

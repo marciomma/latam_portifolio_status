@@ -1,798 +1,395 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Check, ChevronDown, ChevronRight, Plus, Save, Trash2 } from "lucide-react"
+import { Check, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { PortfolioService } from "@/services/portfolio-service"
+import type { Category, Procedure, ProductType } from "@/types/database"
 
-type EditableCategory = {
-  id: string
-  name: string
-  description?: string
-  isActive: boolean
-  isNew?: boolean
-  isModified?: boolean
-  isSelected?: boolean
-  isExpanded?: boolean
+interface CategoriesProceduresEditorProps {
+  onUpdate?: () => Promise<void>
 }
 
-type EditableProcedure = {
-  id: string
-  name: string
-  category: string
-  description?: string
-  isActive: boolean
-  isNew?: boolean
-  isModified?: boolean
-  isSelected?: boolean
-}
+export function CategoriesProceduresEditor({ onUpdate }: CategoriesProceduresEditorProps) {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [procedures, setProcedures] = useState<Procedure[]>([])
+  const [productTypes, setProductTypes] = useState<ProductType[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState("")
 
-export function CategoriesProceduresEditor() {
-  // State for Categories
-  const [categories, setCategories] = useState<EditableCategory[]>([])
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false)
-  const [newCategory, setNewCategory] = useState<{ name: string; description: string; isActive: boolean }>({
-    name: "",
-    description: "",
-    isActive: true,
-  })
-  const [selectAllCategories, setSelectAllCategories] = useState(false)
-  const [categorySuccessMessage, setCategorySuccessMessage] = useState("")
-
-  // State for Procedures
-  const [procedures, setProcedures] = useState<EditableProcedure[]>([])
   const [isAddProcedureDialogOpen, setIsAddProcedureDialogOpen] = useState(false)
-  const [newProcedure, setNewProcedure] = useState<{
-    name: string
-    category: string
-    description: string
-    isActive: boolean
-  }>({
-    name: "",
-    category: "",
-    description: "",
-    isActive: true,
-  })
-  const [selectAllProcedures, setSelectAllProcedures] = useState(false)
-  const [procedureSuccessMessage, setProcedureSuccessMessage] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [isAddProductTypeDialogOpen, setIsAddProductTypeDialogOpen] = useState(false)
 
-  // Load initial data
+  const [newCategory, setNewCategory] = useState({ name: "", description: "" })
+  const [newProcedure, setNewProcedure] = useState({ name: "", categoryId: "", description: "" })
+  const [newProductType, setNewProductType] = useState({ name: "", procedureId: "", description: "" })
+
   useEffect(() => {
-    // In a real app, this would fetch from an API
-    // For now, we'll extract unique categories from procedures
-    const proceduresData = PortfolioService.getProcedures()
-    const uniqueCategories = Array.from(new Set(proceduresData.map((proc) => proc.category)))
+    const loadData = async () => {
+      try {
+        setIsLoading(true)
+        const categoriesData = await PortfolioService.getCategories()
+        const proceduresData = await PortfolioService.getProcedures()
+        const productTypesData = await PortfolioService.getProductTypes()
 
-    const categoriesData: EditableCategory[] = uniqueCategories.map((category, index) => ({
-      id: `category-${index + 1}`,
-      name: category,
-      description: `Description for ${category}`,
-      isActive: true,
-      isModified: false,
-      isSelected: false,
-      isExpanded: false,
-    }))
+        setCategories(categoriesData)
+        setProcedures(proceduresData)
+        setProductTypes(productTypesData)
+      } catch (err) {
+        console.error("Error loading data:", err)
+        setError("Failed to load data")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    const proceduresData2: EditableProcedure[] = proceduresData.map((procedure) => ({
-      id: procedure.id,
-      name: procedure.name,
-      category: procedure.category,
-      description: procedure.description || "",
-      isActive: procedure.isActive,
-      isModified: false,
-      isSelected: false,
-    }))
-
-    setCategories(categoriesData)
-    setProcedures(proceduresData2)
+    loadData()
   }, [])
 
-  // Category Functions
-  const handleCategoryNameChange = (categoryId: string, name: string) => {
-    setCategories(
-      categories.map((category) =>
-        category.id === categoryId
-          ? {
-              ...category,
-              name,
-              isModified: true,
-            }
-          : category,
-      ),
-    )
-  }
+  const handleAddCategory = async () => {
+    try {
+      if (!newCategory.name) return
 
-  const handleCategoryDescriptionChange = (categoryId: string, description: string) => {
-    setCategories(
-      categories.map((category) =>
-        category.id === categoryId
-          ? {
-              ...category,
-              description,
-              isModified: true,
-            }
-          : category,
-      ),
-    )
-  }
+      // In a real app, this would call an API to add the category
+      const newCategoryItem = {
+        id: `category-${Date.now()}`,
+        name: newCategory.name,
+        description: newCategory.description,
+      }
 
-  const handleCategoryActiveChange = (categoryId: string, isActive: boolean) => {
-    setCategories(
-      categories.map((category) =>
-        category.id === categoryId
-          ? {
-              ...category,
-              isActive,
-              isModified: true,
-            }
-          : category,
-      ),
-    )
-  }
+      setCategories([...categories, newCategoryItem])
+      setIsAddCategoryDialogOpen(false)
+      setNewCategory({ name: "", description: "" })
+      setSuccessMessage("Categoria adicionada com sucesso")
 
-  const handleSelectCategory = (categoryId: string, checked: boolean) => {
-    setCategories(
-      categories.map((category) =>
-        category.id === categoryId
-          ? {
-              ...category,
-              isSelected: checked,
-            }
-          : category,
-      ),
-    )
+      // Call onUpdate if provided
+      if (onUpdate) {
+        await onUpdate()
+      }
 
-    // Update selectAll state
-    const updatedCategories = categories.map((category) =>
-      category.id === categoryId ? { ...category, isSelected: checked } : category,
-    )
-    const allSelected = updatedCategories.every((category) => category.isSelected)
-    const noneSelected = updatedCategories.every((category) => !category.isSelected)
-
-    setSelectAllCategories(allSelected && !noneSelected)
-  }
-
-  const handleSelectAllCategories = (checked: boolean) => {
-    setSelectAllCategories(checked)
-    setCategories(
-      categories.map((category) => ({
-        ...category,
-        isSelected: checked,
-      })),
-    )
-  }
-
-  const handleToggleCategoryExpand = (categoryId: string) => {
-    setCategories(
-      categories.map((category) =>
-        category.id === categoryId
-          ? {
-              ...category,
-              isExpanded: !category.isExpanded,
-            }
-          : category,
-      ),
-    )
-  }
-
-  const handleAddNewCategory = () => {
-    if (!newCategory.name) {
-      return
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 3000)
+    } catch (err) {
+      console.error("Error adding category:", err)
+      setError("Failed to add category")
     }
+  }
 
-    const newCategoryItem: EditableCategory = {
-      id: `new-category-${Date.now()}`,
-      name: newCategory.name,
-      description: newCategory.description,
-      isActive: newCategory.isActive,
-      isNew: true,
-      isModified: true,
-      isSelected: false,
-      isExpanded: false,
+  const handleAddProcedure = async () => {
+    try {
+      if (!newProcedure.name || !newProcedure.categoryId) return
+
+      // In a real app, this would call an API to add the procedure
+      const newProcedureItem = {
+        id: `procedure-${Date.now()}`,
+        name: newProcedure.name,
+        categoryId: newProcedure.categoryId,
+        description: newProcedure.description,
+      }
+
+      setProcedures([...procedures, newProcedureItem])
+      setIsAddProcedureDialogOpen(false)
+      setNewProcedure({ name: "", categoryId: "", description: "" })
+      setSuccessMessage("Procedimento adicionado com sucesso")
+
+      // Call onUpdate if provided
+      if (onUpdate) {
+        await onUpdate()
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 3000)
+    } catch (err) {
+      console.error("Error adding procedure:", err)
+      setError("Failed to add procedure")
     }
-
-    setCategories([...categories, newCategoryItem])
-    setIsAddCategoryDialogOpen(false)
-    setNewCategory({
-      name: "",
-      description: "",
-      isActive: true,
-    })
   }
 
-  const handleDeleteSelectedCategories = () => {
-    const selectedCategories = categories.filter((category) => category.isSelected)
-    if (selectedCategories.length === 0) return
+  const handleAddProductType = async () => {
+    try {
+      if (!newProductType.name || !newProductType.procedureId) return
 
-    // In a real app, this would call an API to delete the categories
-    // Also need to handle related procedures
-    setCategories(categories.filter((category) => !category.isSelected))
-    setCategorySuccessMessage(`${selectedCategories.length} categoria(s) excluída(s) com sucesso`)
-    setSelectAllCategories(false)
+      // In a real app, this would call an API to add the product type
+      const newProductTypeItem = {
+        id: `product-type-${Date.now()}`,
+        name: newProductType.name,
+        procedureId: newProductType.procedureId,
+        description: newProductType.description,
+      }
 
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setCategorySuccessMessage("")
-    }, 3000)
-  }
+      setProductTypes([...productTypes, newProductTypeItem])
+      setIsAddProductTypeDialogOpen(false)
+      setNewProductType({ name: "", procedureId: "", description: "" })
+      setSuccessMessage("Tipo de produto adicionado com sucesso")
 
-  const handleSaveCategories = () => {
-    const modifiedCategories = categories.filter((category) => category.isModified)
-    if (modifiedCategories.length === 0) return
+      // Call onUpdate if provided
+      if (onUpdate) {
+        await onUpdate()
+      }
 
-    // In a real app, this would call an API to save the changes
-    // For now, just mark them as not modified
-    setCategories(
-      categories.map((category) => ({
-        ...category,
-        isModified: false,
-        isNew: false,
-      })),
-    )
-
-    setCategorySuccessMessage(`${modifiedCategories.length} categoria(s) salva(s) com sucesso`)
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setCategorySuccessMessage("")
-    }, 3000)
-  }
-
-  // Procedure Functions
-  const handleProcedureNameChange = (procedureId: string, name: string) => {
-    setProcedures(
-      procedures.map((procedure) =>
-        procedure.id === procedureId
-          ? {
-              ...procedure,
-              name,
-              isModified: true,
-            }
-          : procedure,
-      ),
-    )
-  }
-
-  const handleProcedureCategoryChange = (procedureId: string, category: string) => {
-    setProcedures(
-      procedures.map((procedure) =>
-        procedure.id === procedureId
-          ? {
-              ...procedure,
-              category,
-              isModified: true,
-            }
-          : procedure,
-      ),
-    )
-  }
-
-  const handleProcedureDescriptionChange = (procedureId: string, description: string) => {
-    setProcedures(
-      procedures.map((procedure) =>
-        procedure.id === procedureId
-          ? {
-              ...procedure,
-              description,
-              isModified: true,
-            }
-          : procedure,
-      ),
-    )
-  }
-
-  const handleProcedureActiveChange = (procedureId: string, isActive: boolean) => {
-    setProcedures(
-      procedures.map((procedure) =>
-        procedure.id === procedureId
-          ? {
-              ...procedure,
-              isActive,
-              isModified: true,
-            }
-          : procedure,
-      ),
-    )
-  }
-
-  const handleSelectProcedure = (procedureId: string, checked: boolean) => {
-    setProcedures(
-      procedures.map((procedure) =>
-        procedure.id === procedureId
-          ? {
-              ...procedure,
-              isSelected: checked,
-            }
-          : procedure,
-      ),
-    )
-
-    // Update selectAll state
-    const updatedProcedures = procedures.map((procedure) =>
-      procedure.id === procedureId ? { ...procedure, isSelected: checked } : procedure,
-    )
-    const allSelected = updatedProcedures.every((procedure) => procedure.isSelected)
-    const noneSelected = updatedProcedures.every((procedure) => !procedure.isSelected)
-
-    setSelectAllProcedures(allSelected && !noneSelected)
-  }
-
-  const handleSelectAllProcedures = (checked: boolean) => {
-    setSelectAllProcedures(checked)
-    setProcedures(
-      procedures.map((procedure) => ({
-        ...procedure,
-        isSelected: checked,
-      })),
-    )
-  }
-
-  const handleAddNewProcedure = () => {
-    if (!newProcedure.name || !newProcedure.category) {
-      return
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 3000)
+    } catch (err) {
+      console.error("Error adding product type:", err)
+      setError("Failed to add product type")
     }
-
-    const newProcedureItem: EditableProcedure = {
-      id: `new-procedure-${Date.now()}`,
-      name: newProcedure.name,
-      category: newProcedure.category,
-      description: newProcedure.description,
-      isActive: newProcedure.isActive,
-      isNew: true,
-      isModified: true,
-      isSelected: false,
-    }
-
-    setProcedures([...procedures, newProcedureItem])
-    setIsAddProcedureDialogOpen(false)
-    setNewProcedure({
-      name: "",
-      category: "",
-      description: "",
-      isActive: true,
-    })
   }
 
-  const handleDeleteSelectedProcedures = () => {
-    const selectedProcedures = procedures.filter((procedure) => procedure.isSelected)
-    if (selectedProcedures.length === 0) return
-
-    // In a real app, this would call an API to delete the procedures
-    setProcedures(procedures.filter((procedure) => !procedure.isSelected))
-    setProcedureSuccessMessage(`${selectedProcedures.length} procedimento(s) excluído(s) com sucesso`)
-    setSelectAllProcedures(false)
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setProcedureSuccessMessage("")
-    }, 3000)
-  }
-
-  const handleSaveProcedures = () => {
-    const modifiedProcedures = procedures.filter((procedure) => procedure.isModified)
-    if (modifiedProcedures.length === 0) return
-
-    // In a real app, this would call an API to save the changes
-    // For now, just mark them as not modified
-    setProcedures(
-      procedures.map((procedure) => ({
-        ...procedure,
-        isModified: false,
-        isNew: false,
-      })),
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <span className="ml-2">Carregando...</span>
+      </div>
     )
-
-    setProcedureSuccessMessage(`${modifiedProcedures.length} procedimento(s) salvo(s) com sucesso`)
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setProcedureSuccessMessage("")
-    }, 3000)
   }
 
-  // Filter procedures based on category
-  const filteredProcedures = procedures.filter(
-    (procedure) => categoryFilter === "all" || procedure.category === categoryFilter,
-  )
+  if (error) {
+    return (
+      <Card className="border-red-500">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-red-600">
+            <p>{error}</p>
+            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-semibold">Gerenciamento de Categorias e Procedimentos</h2>
+      <h2 className="mb-6 text-xl font-semibold">Categorias e Procedimentos</h2>
 
-      <Tabs defaultValue="categories" className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-2">
+      {successMessage && (
+        <Card className="mb-6 border-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-green-600">
+              <Check className="h-5 w-5" />
+              <p>{successMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="categories">
+        <TabsList className="mb-4">
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="procedures">Procedimentos</TabsTrigger>
+          <TabsTrigger value="product-types">Tipos de Produto</TabsTrigger>
         </TabsList>
 
-        {/* Categories Tab */}
         <TabsContent value="categories">
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-lg font-medium">Categorias</h3>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2"
-                onClick={() => setIsAddCategoryDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Nova Categoria
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex items-center gap-2"
-                onClick={handleDeleteSelectedCategories}
-                disabled={!categories.some((category) => category.isSelected)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Excluir Selecionadas
-              </Button>
-            </div>
+          <div className="mb-4 flex justify-end">
+            <Button onClick={() => setIsAddCategoryDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Categoria
+            </Button>
           </div>
 
-          {categorySuccessMessage && (
-            <Card className="mb-6 border-green-500">
+          {categories.map((category) => (
+            <Card key={category.id} className="mb-4">
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-green-600">
-                  <Check className="h-5 w-5" />
-                  <p>{categorySuccessMessage}</p>
-                </div>
+                <h3 className="mb-2 text-lg font-medium">{category.name}</h3>
+                {category.description && <p className="text-sm text-gray-500">{category.description}</p>}
               </CardContent>
             </Card>
-          )}
-
-          <div className="mb-6 overflow-x-auto">
-            <Table className="border-collapse">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40px]">
-                    <Checkbox
-                      checked={selectAllCategories}
-                      onCheckedChange={handleSelectAllCategories}
-                      aria-label="Selecionar todas"
-                    />
-                  </TableHead>
-                  <TableHead className="w-[40px]"></TableHead>
-                  <TableHead className="w-[300px]">Nome da Categoria</TableHead>
-                  <TableHead className="w-[400px]">Descrição</TableHead>
-                  <TableHead className="w-[100px]">Ativo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {categories.length > 0 ? (
-                  categories.map((category) => (
-                    <TableRow
-                      key={category.id}
-                      className={category.isNew ? "bg-blue-50" : category.isModified ? "bg-yellow-50" : ""}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={category.isSelected}
-                          onCheckedChange={(checked) => handleSelectCategory(category.id, !!checked)}
-                          aria-label="Selecionar categoria"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleToggleCategoryExpand(category.id)}
-                        >
-                          {category.isExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={category.name}
-                          onChange={(e) => handleCategoryNameChange(category.id, e.target.value)}
-                          placeholder="Nome da categoria"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={category.description || ""}
-                          onChange={(e) => handleCategoryDescriptionChange(category.id, e.target.value)}
-                          placeholder="Descrição da categoria"
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={category.isActive}
-                          onCheckedChange={(checked) => handleCategoryActiveChange(category.id, !!checked)}
-                          aria-label="Categoria ativa"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Nenhuma categoria encontrada. Adicione novas categorias usando o botão acima.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {categories.some((category) => category.isModified) && (
-            <Button onClick={handleSaveCategories} className="w-full">
-              <Save className="mr-2 h-4 w-4" />
-              Salvar Alterações
-            </Button>
-          )}
-
-          {/* Dialog for adding new category */}
-          <Dialog open={isAddCategoryDialogOpen} onOpenChange={setIsAddCategoryDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Adicionar Nova Categoria</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Nome da Categoria</label>
-                  <Input
-                    value={newCategory.name}
-                    onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                    placeholder="Digite o nome da categoria"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Descrição</label>
-                  <Textarea
-                    value={newCategory.description}
-                    onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                    placeholder="Digite a descrição da categoria"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="category-active"
-                    checked={newCategory.isActive}
-                    onCheckedChange={(checked) => setNewCategory({ ...newCategory, isActive: !!checked })}
-                  />
-                  <label htmlFor="category-active" className="text-sm font-medium">
-                    Categoria Ativa
-                  </label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddNewCategory}>Adicionar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          ))}
         </TabsContent>
 
-        {/* Procedures Tab */}
         <TabsContent value="procedures">
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-lg font-medium">Procedimentos</h3>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2"
-                onClick={() => setIsAddProcedureDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Novo Procedimento
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex items-center gap-2"
-                onClick={handleDeleteSelectedProcedures}
-                disabled={!procedures.some((procedure) => procedure.isSelected)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Excluir Selecionados
-              </Button>
-            </div>
-          </div>
-
-          {procedureSuccessMessage && (
-            <Card className="mb-6 border-green-500">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-green-600">
-                  <Check className="h-5 w-5" />
-                  <p>{procedureSuccessMessage}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Filters */}
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="grid gap-4 md:grid-cols-1">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Filtrar por Categoria</label>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filtrar por categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as Categorias</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.name}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="mb-6 overflow-x-auto">
-            <Table className="border-collapse">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40px]">
-                    <Checkbox
-                      checked={selectAllProcedures}
-                      onCheckedChange={handleSelectAllProcedures}
-                      aria-label="Selecionar todos"
-                    />
-                  </TableHead>
-                  <TableHead className="w-[200px]">Categoria</TableHead>
-                  <TableHead className="w-[300px]">Nome do Procedimento</TableHead>
-                  <TableHead className="w-[400px]">Descrição</TableHead>
-                  <TableHead className="w-[100px]">Ativo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProcedures.length > 0 ? (
-                  filteredProcedures.map((procedure) => (
-                    <TableRow
-                      key={procedure.id}
-                      className={procedure.isNew ? "bg-blue-50" : procedure.isModified ? "bg-yellow-50" : ""}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={procedure.isSelected}
-                          onCheckedChange={(checked) => handleSelectProcedure(procedure.id, !!checked)}
-                          aria-label="Selecionar procedimento"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={procedure.category}
-                          onValueChange={(value) => handleProcedureCategoryChange(procedure.id, value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione uma categoria" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.name}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={procedure.name}
-                          onChange={(e) => handleProcedureNameChange(procedure.id, e.target.value)}
-                          placeholder="Nome do procedimento"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={procedure.description || ""}
-                          onChange={(e) => handleProcedureDescriptionChange(procedure.id, e.target.value)}
-                          placeholder="Descrição do procedimento"
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={procedure.isActive}
-                          onCheckedChange={(checked) => handleProcedureActiveChange(procedure.id, !!checked)}
-                          aria-label="Procedimento ativo"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Nenhum procedimento encontrado. Adicione novos procedimentos usando o botão acima ou ajuste seus
-                      filtros.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {procedures.some((procedure) => procedure.isModified) && (
-            <Button onClick={handleSaveProcedures} className="w-full">
-              <Save className="mr-2 h-4 w-4" />
-              Salvar Alterações
+          <div className="mb-4 flex justify-end">
+            <Button onClick={() => setIsAddProcedureDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Procedimento
             </Button>
-          )}
+          </div>
 
-          {/* Dialog for adding new procedure */}
-          <Dialog open={isAddProcedureDialogOpen} onOpenChange={setIsAddProcedureDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Adicionar Novo Procedimento</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Categoria</label>
-                  <Select
-                    value={newProcedure.category}
-                    onValueChange={(value) => setNewProcedure({ ...newProcedure, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.name}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Nome do Procedimento</label>
-                  <Input
-                    value={newProcedure.name}
-                    onChange={(e) => setNewProcedure({ ...newProcedure, name: e.target.value })}
-                    placeholder="Digite o nome do procedimento"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Descrição</label>
-                  <Textarea
-                    value={newProcedure.description}
-                    onChange={(e) => setNewProcedure({ ...newProcedure, description: e.target.value })}
-                    placeholder="Digite a descrição do procedimento"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="procedure-active"
-                    checked={newProcedure.isActive}
-                    onCheckedChange={(checked) => setNewProcedure({ ...newProcedure, isActive: !!checked })}
-                  />
-                  <label htmlFor="procedure-active" className="text-sm font-medium">
-                    Procedimento Ativo
-                  </label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddProcedureDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddNewProcedure}>Adicionar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {procedures.map((procedure) => {
+            const category = categories.find((c) => c.id === procedure.categoryId)
+            return (
+              <Card key={procedure.id} className="mb-4">
+                <CardContent className="p-4">
+                  <h3 className="mb-2 text-lg font-medium">{procedure.name}</h3>
+                  <p className="mb-2 text-sm">Categoria: {category?.name || "Desconhecida"}</p>
+                  {procedure.description && <p className="text-sm text-gray-500">{procedure.description}</p>}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </TabsContent>
+
+        <TabsContent value="product-types">
+          <div className="mb-4 flex justify-end">
+            <Button onClick={() => setIsAddProductTypeDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Tipo de Produto
+            </Button>
+          </div>
+
+          {productTypes.map((productType) => {
+            const procedure = procedures.find((p) => p.id === productType.procedureId)
+            return (
+              <Card key={productType.id} className="mb-4">
+                <CardContent className="p-4">
+                  <h3 className="mb-2 text-lg font-medium">{productType.name}</h3>
+                  <p className="mb-2 text-sm">Procedimento: {procedure?.name || "Desconhecido"}</p>
+                  {productType.description && <p className="text-sm text-gray-500">{productType.description}</p>}
+                </CardContent>
+              </Card>
+            )
+          })}
         </TabsContent>
       </Tabs>
+
+      {/* Dialog for adding new category */}
+      <Dialog open={isAddCategoryDialogOpen} onOpenChange={setIsAddCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Categoria</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome</label>
+              <Input
+                value={newCategory.name}
+                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                placeholder="Nome da categoria"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descrição</label>
+              <Input
+                value={newCategory.description}
+                onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                placeholder="Descrição (opcional)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddCategory}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for adding new procedure */}
+      <Dialog open={isAddProcedureDialogOpen} onOpenChange={setIsAddProcedureDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Procedimento</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome</label>
+              <Input
+                value={newProcedure.name}
+                onChange={(e) => setNewProcedure({ ...newProcedure, name: e.target.value })}
+                placeholder="Nome do procedimento"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Categoria</label>
+              <Select
+                value={newProcedure.categoryId}
+                onValueChange={(value) => setNewProcedure({ ...newProcedure, categoryId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descrição</label>
+              <Input
+                value={newProcedure.description}
+                onChange={(e) => setNewProcedure({ ...newProcedure, description: e.target.value })}
+                placeholder="Descrição (opcional)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddProcedureDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddProcedure}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for adding new product type */}
+      <Dialog open={isAddProductTypeDialogOpen} onOpenChange={setIsAddProductTypeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Tipo de Produto</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome</label>
+              <Input
+                value={newProductType.name}
+                onChange={(e) => setNewProductType({ ...newProductType, name: e.target.value })}
+                placeholder="Nome do tipo de produto"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Procedimento</label>
+              <Select
+                value={newProductType.procedureId}
+                onValueChange={(value) => setNewProductType({ ...newProductType, procedureId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um procedimento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {procedures.map((procedure) => (
+                    <SelectItem key={procedure.id} value={procedure.id}>
+                      {procedure.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descrição</label>
+              <Input
+                value={newProductType.description}
+                onChange={(e) => setNewProductType({ ...newProductType, description: e.target.value })}
+                placeholder="Descrição (opcional)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddProductTypeDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddProductType}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

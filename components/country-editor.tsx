@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Save } from "lucide-react"
+import { Check, Save, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,6 +15,7 @@ interface CountryEditorProps {
   countries: Country[]
   procedures: Procedure[]
   statuses: Status[]
+  onUpdate: () => Promise<void>
 }
 
 type EditableItem = {
@@ -34,12 +35,14 @@ type EditableItem = {
   }
 }
 
-export function CountryEditor({ portfolioData, countries, procedures, statuses }: CountryEditorProps) {
+export function CountryEditor({ portfolioData, countries, procedures, statuses, onUpdate }: CountryEditorProps) {
   const [selectedCountry, setSelectedCountry] = useState<string>("")
   const [editableData, setEditableData] = useState<EditableItem[]>([])
   const [successMessage, setSuccessMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [procedureFilter, setProcedureFilter] = useState<string>("all")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Get unique categories
   const categories = Array.from(new Set(portfolioData.map((item) => item.category)))
@@ -97,48 +100,71 @@ export function CountryEditor({ portfolioData, countries, procedures, statuses }
     setEditableData(newData)
   }
 
-  const handleSave = () => {
-    // Collect all updates
-    const updates: {
-      productId: string
-      countryId: string
-      statusId: string
-    }[] = []
+  const handleSave = async () => {
+    // Clear previous messages
+    setSuccessMessage("")
+    setErrorMessage("")
+    setIsSubmitting(true)
 
-    editableData.forEach((item) => {
-      if (item.status.isModified) {
-        updates.push({
-          productId: item.productId,
-          countryId: selectedCountry,
-          statusId: item.status.statusId,
-        })
+    try {
+      // Collect all updates
+      const updates: {
+        productId: string
+        countryId: string
+        statusId: string
+      }[] = []
+
+      editableData.forEach((item) => {
+        if (item.status.isModified) {
+          updates.push({
+            productId: item.productId,
+            countryId: selectedCountry,
+            statusId: item.status.statusId,
+          })
+        }
+      })
+
+      // Save updates
+      if (updates.length > 0) {
+        const success = await PortfolioService.bulkUpdateStatus(updates)
+
+        if (success) {
+          // Show success message
+          const countryName = countries.find((c) => c.id === selectedCountry)?.name || selectedCountry
+          setSuccessMessage(`Status atualizado com sucesso para ${countryName} (${updates.length} alterações)`)
+
+          // Reset modified flags
+          setEditableData(
+            editableData.map((item) => ({
+              ...item,
+              status: {
+                ...item.status,
+                isModified: false,
+              },
+            })),
+          )
+
+          // Refresh data
+          if (onUpdate) {
+            await onUpdate()
+          }
+        } else {
+          setErrorMessage("Erro ao atualizar status. Tente novamente.")
+        }
       }
-    })
+    } catch (error) {
+      console.error("Error saving status updates:", error)
+      setErrorMessage("Erro ao atualizar status. Tente novamente.")
+    } finally {
+      setIsSubmitting(false)
 
-    // Save updates
-    if (updates.length > 0) {
-      PortfolioService.bulkUpdateStatus(updates)
-
-      // Show success message
-      const countryName = countries.find((c) => c.id === selectedCountry)?.name || selectedCountry
-      setSuccessMessage(`Status atualizado com sucesso para ${countryName} (${updates.length} alterações)`)
-
-      // Reset modified flags
-      setEditableData(
-        editableData.map((item) => ({
-          ...item,
-          status: {
-            ...item.status,
-            isModified: false,
-          },
-        })),
-      )
+      // Clear success message after 3 seconds
+      if (successMessage) {
+        setTimeout(() => {
+          setSuccessMessage("")
+        }, 3000)
+      }
     }
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
   }
 
   // Group data by category, procedure, and product type
@@ -185,6 +211,17 @@ export function CountryEditor({ portfolioData, countries, procedures, statuses }
             <div className="flex items-center gap-2 text-green-600">
               <Check className="h-5 w-5" />
               <p>{successMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {errorMessage && (
+        <Card className="mb-6 border-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <X className="h-5 w-5" />
+              <p>{errorMessage}</p>
             </div>
           </CardContent>
         </Card>
@@ -271,7 +308,14 @@ export function CountryEditor({ portfolioData, countries, procedures, statuses }
                             <TableCell className="border p-0">
                               <div className="grid grid-cols-1 divide-y">
                                 {tier1Items.map((item, index) => {
-                                  const status = statuses.find((s) => s.id === item.status.statusId) || statuses[4]
+                                  const status = statuses.find((s) => s.id === item.status.statusId) ||
+                                    statuses.find((s) => s.code === "") || {
+                                      id: "",
+                                      code: "",
+                                      name: "None",
+                                      color: "#FFFFFF",
+                                      isActive: true,
+                                    }
 
                                   return (
                                     <div key={`tier1-${index}`} className="p-2">
@@ -311,7 +355,14 @@ export function CountryEditor({ portfolioData, countries, procedures, statuses }
                                 })}
 
                                 {tier2Items.map((item, index) => {
-                                  const status = statuses.find((s) => s.id === item.status.statusId) || statuses[4]
+                                  const status = statuses.find((s) => s.id === item.status.statusId) ||
+                                    statuses.find((s) => s.code === "") || {
+                                      id: "",
+                                      code: "",
+                                      name: "None",
+                                      color: "#FFFFFF",
+                                      isActive: true,
+                                    }
 
                                   return (
                                     <div key={`tier2-${index}`} className="p-2">
@@ -374,10 +425,19 @@ export function CountryEditor({ portfolioData, countries, procedures, statuses }
           <Button
             onClick={handleSave}
             className="w-full"
-            disabled={!editableData.some((item) => item.status.isModified)}
+            disabled={!editableData.some((item) => item.status.isModified) || isSubmitting}
           >
-            <Save className="mr-2 h-4 w-4" />
-            Salvar Alterações para {countries.find((c) => c.id === selectedCountry)?.name}
+            {isSubmitting ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Alterações para {countries.find((c) => c.id === selectedCountry)?.name}
+              </>
+            )}
           </Button>
         </>
       ) : (
