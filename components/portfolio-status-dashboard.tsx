@@ -12,24 +12,48 @@ import { CountryEditor } from "@/components/country-editor"
 import { ProductsEditor } from "@/components/products-editor"
 import { CategoriesProceduresEditor } from "@/components/categories-procedures-editor"
 import { PortfolioService } from "@/services/portfolio-service"
-import type { Country, PortfolioStatusView } from "@/types/database"
+
+import type {
+  Country,
+  PortfolioStatusView,
+  Procedure,
+  ProductType,
+  Status
+} from "@/types/database"
 
 export function PortfolioStatusDashboard() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
+
   const [countries, setCountries] = useState<Country[]>([])
   const [portfolioData, setPortfolioData] = useState<PortfolioStatusView[]>([])
+  const [procedures, setProcedures] = useState<Procedure[]>([])
+  const [productTypes, setProductTypes] = useState<ProductType[]>([])
+  const [statuses, setStatuses] = useState<Status[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const countriesData = PortfolioService.getCountries()
-        const portfolioViewData = PortfolioService.getPortfolioStatusView()
+        const [
+          countriesData,
+          portfolioViewData,
+          proceduresData,
+          productTypesData,
+          statusesData
+        ] = await Promise.all([
+          PortfolioService.getCountries(),
+          PortfolioService.getPortfolioStatusView(),
+          PortfolioService.getProcedures(),
+          PortfolioService.getProductTypes(),
+          PortfolioService.getStatuses()
+        ])
 
         setCountries(countriesData)
         setPortfolioData(portfolioViewData)
+        setProcedures(proceduresData)
+        setProductTypes(productTypesData)
+        setStatuses(statusesData)
         setSelectedCountries(countriesData.map((c) => c.id))
         setIsLoading(false)
       } catch (error) {
@@ -42,11 +66,11 @@ export function PortfolioStatusDashboard() {
   }, [])
 
   const toggleCountry = (countryId: string) => {
-    if (selectedCountries.includes(countryId)) {
-      setSelectedCountries(selectedCountries.filter((c) => c !== countryId))
-    } else {
-      setSelectedCountries([...selectedCountries, countryId])
-    }
+    setSelectedCountries((prev) =>
+      prev.includes(countryId)
+        ? prev.filter((c) => c !== countryId)
+        : [...prev, countryId]
+    )
   }
 
   const selectAllCountries = () => {
@@ -104,7 +128,7 @@ export function PortfolioStatusDashboard() {
             <div>
               <h3 className="mb-2 font-medium">Status Legend</h3>
               <div className="flex flex-wrap gap-3">
-                {PortfolioService.getStatuses()
+                {statuses
                   .filter((s) => s.code)
                   .map((status) => (
                     <div key={status.id} className="flex items-center gap-2">
@@ -134,8 +158,8 @@ export function PortfolioStatusDashboard() {
                 portfolioData={portfolioData}
                 countries={countries}
                 selectedCountryIds={selectedCountries}
-                procedures={PortfolioService.getProcedures()}
-                productTypes={PortfolioService.getProductTypes()}
+                procedures={procedures}
+                productTypes={productTypes}
               />
             </CardContent>
           </Card>
@@ -147,8 +171,8 @@ export function PortfolioStatusDashboard() {
               <StatusUpdateForm
                 portfolioData={portfolioData}
                 countries={countries}
-                procedures={PortfolioService.getProcedures()}
-                statuses={PortfolioService.getStatuses()}
+                procedures={procedures}
+                statuses={statuses}
               />
             </CardContent>
           </Card>
@@ -160,8 +184,8 @@ export function PortfolioStatusDashboard() {
               <CountryEditor
                 portfolioData={portfolioData}
                 countries={countries}
-                procedures={PortfolioService.getProcedures()}
-                statuses={PortfolioService.getStatuses()}
+                procedures={procedures}
+                statuses={statuses}
               />
             </CardContent>
           </Card>
@@ -171,8 +195,8 @@ export function PortfolioStatusDashboard() {
           <Card>
             <CardContent className="p-6">
               <ProductsEditor
-                procedures={PortfolioService.getProcedures()}
-                productTypes={PortfolioService.getProductTypes()}
+                procedures={procedures}
+                productTypes={productTypes}
               />
             </CardContent>
           </Card>

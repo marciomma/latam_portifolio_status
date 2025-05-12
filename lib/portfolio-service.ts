@@ -12,31 +12,31 @@ import type {
 
 export class PortfolioService {
   static async getProcedures(): Promise<Procedure[]> {
-    return await getFromRedis<Procedure>('procedures')
+    return getFromRedis<Procedure>('procedures')
   }
 
   static async getCountries(): Promise<Country[]> {
-    return await getFromRedis<Country>('countries')
+    return getFromRedis<Country>('countries')
   }
 
   static async getProductTypes(): Promise<ProductType[]> {
-    return await getFromRedis<ProductType>('productTypes')
+    return getFromRedis<ProductType>('productTypes')
   }
 
   static async getProducts(): Promise<Product[]> {
-    return await getFromRedis<Product>('products')
+    return getFromRedis<Product>('products')
   }
 
   static async getStatuses(): Promise<Status[]> {
-    return await getFromRedis<Status>('statuses')
+    return getFromRedis<Status>('statuses')
   }
 
   static async getStatusPortfolios(): Promise<StatusPortfolio[]> {
-    return await getFromRedis<StatusPortfolio>('statusPortfolios')
+    return getFromRedis<StatusPortfolio>('statusPortfolios')
   }
 
   static async getPortfolioStatusView(): Promise<PortfolioStatusView[]> {
-    return await getFromRedis<PortfolioStatusView>('portfolioStatusView')
+    return getFromRedis<PortfolioStatusView>('portfolioStatusView')
   }
 
   static async getProductsByProcedure(procedureId: string): Promise<Product[]> {
@@ -45,16 +45,16 @@ export class PortfolioService {
   }
 
   static async getPortfolioStatusViewByCountry(countryId: string): Promise<PortfolioStatusView[]> {
-    const full = await this.getPortfolioStatusView()
-    return full.map((item) => ({
+    const view = await this.getPortfolioStatusView()
+    return view.map((item) => ({
       ...item,
       countryStatuses: item.countryStatuses.filter((cs) => cs.countryId === countryId),
     }))
   }
 
-  // Mantemos como simulação
   static async updateStatus(productId: string, countryId: string, statusId: string, notes?: string): Promise<boolean> {
-    console.log(`Atualizando produto ${productId} em ${countryId} para status ${statusId}`)
+    // Esta função ainda está mockada; podemos persistir no Redis depois
+    console.log(`[Simulado] Atualizando status de ${productId} em ${countryId} para ${statusId}`)
     return true
   }
 
