@@ -1,4 +1,8 @@
-import redis from '../lib/redis'
+import { redis } from '../lib/redis'
+import * as dotenv from 'dotenv'
+
+// Carregar variáveis de ambiente do .env.local
+dotenv.config({ path: '.env.local' })
 
 import {
   procedures,
@@ -11,7 +15,7 @@ import {
 } from '../data/mock-data'
 
 async function main() {
-  console.log('🔍 Redis URL:', process.env.UPSTASH_REDIS_URL)
+  console.log('🔍 Redis URL:', process.env.UPSTASH_REDIS_REST_URL ? '[Configurado]' : '[Não configurado]')
   await redis.set('procedures', JSON.stringify(procedures))
   await redis.set('countries', JSON.stringify(countries))
   await redis.set('productTypes', JSON.stringify(productTypes))

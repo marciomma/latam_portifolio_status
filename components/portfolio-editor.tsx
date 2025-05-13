@@ -32,97 +32,70 @@ type EditablePortfolioItem = {
 export function PortfolioEditor({ countries, products, statuses }: PortfolioEditorProps) {
   const [portfolioItems, setPortfolioItems] = useState<EditablePortfolioItem[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newItem, setNewItem] = useState<{ productId: string; countryId: string; statusId: string }>({
-    productId: "",
-    countryId: "",
-    statusId: "",
-  })
+  const [newItem, setNewItem] = useState({ productId: "", countryId: "", statusId: "" })
   const [successMessage, setSuccessMessage] = useState("")
   const [selectAll, setSelectAll] = useState(false)
 
-  // Load initial data
   useEffect(() => {
-    // In a real app, this would fetch from an API
-    const statusPortfolios = PortfolioService.getStatusPortfolios()
+    const loadData = async () => {
+      const statusPortfolios = await PortfolioService.getStatusPortfolios()
 
-    const items: EditablePortfolioItem[] = statusPortfolios.map((sp) => {
-      const product = products.find((p) => p.id === sp.productId)
-      return {
-        id: sp.id,
-        productId: sp.productId,
-        productName: product?.name || "Produto Desconhecido",
-        countryId: sp.countryId,
-        statusId: sp.statusId,
-        isModified: false,
-        isSelected: false,
-      }
-    })
+      const items: EditablePortfolioItem[] = statusPortfolios.map((sp) => {
+        const product = products.find((p) => p.id === sp.productId)
+        return {
+          id: sp.id,
+          productId: sp.productId,
+          productName: product?.name || "Produto Desconhecido",
+          countryId: sp.countryId,
+          statusId: sp.statusId,
+          isModified: false,
+          isSelected: false,
+        }
+      })
 
-    setPortfolioItems(items)
+      setPortfolioItems(items)
+    }
+
+    loadData()
   }, [products])
 
   const handleStatusChange = (itemId: string, statusId: string) => {
-    setPortfolioItems(
-      portfolioItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              statusId,
-              isModified: true,
-            }
-          : item,
-      ),
+    setPortfolioItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, statusId, isModified: true } : item
+      )
     )
   }
 
   const handleCountryChange = (itemId: string, countryId: string) => {
-    setPortfolioItems(
-      portfolioItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              countryId,
-              isModified: true,
-            }
-          : item,
-      ),
+    setPortfolioItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, countryId, isModified: true } : item
+      )
     )
   }
 
   const handleSelectItem = (itemId: string, checked: boolean) => {
-    setPortfolioItems(
-      portfolioItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              isSelected: checked,
-            }
-          : item,
-      ),
+    const updated = portfolioItems.map((item) =>
+      item.id === itemId ? { ...item, isSelected: checked } : item
     )
 
-    // Update selectAll state
-    const updatedItems = portfolioItems.map((item) => (item.id === itemId ? { ...item, isSelected: checked } : item))
-    const allSelected = updatedItems.every((item) => item.isSelected)
-    const noneSelected = updatedItems.every((item) => !item.isSelected)
+    setPortfolioItems(updated)
 
+    const allSelected = updated.every((item) => item.isSelected)
+    const noneSelected = updated.every((item) => !item.isSelected)
     setSelectAll(allSelected && !noneSelected)
   }
 
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
-    setPortfolioItems(
-      portfolioItems.map((item) => ({
-        ...item,
-        isSelected: checked,
-      })),
+    setPortfolioItems((prev) =>
+      prev.map((item) => ({ ...item, isSelected: checked }))
     )
   }
 
   const handleAddNewItem = () => {
-    if (!newItem.productId || !newItem.countryId || !newItem.statusId) {
-      return
-    }
+    if (!newItem.productId || !newItem.countryId || !newItem.statusId) return
 
     const product = products.find((p) => p.id === newItem.productId)
 
@@ -146,37 +119,27 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
     const selectedItems = portfolioItems.filter((item) => item.isSelected)
     if (selectedItems.length === 0) return
 
-    // In a real app, this would call an API to delete the items
     setPortfolioItems(portfolioItems.filter((item) => !item.isSelected))
     setSuccessMessage(`${selectedItems.length} registro(s) excluído(s) com sucesso`)
     setSelectAll(false)
 
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
+    setTimeout(() => setSuccessMessage(""), 3000)
   }
 
   const handleSave = () => {
     const modifiedItems = portfolioItems.filter((item) => item.isModified)
     if (modifiedItems.length === 0) return
 
-    // In a real app, this would call an API to save the changes
-    // For now, just mark them as not modified
-    setPortfolioItems(
-      portfolioItems.map((item) => ({
+    setPortfolioItems((prev) =>
+      prev.map((item) => ({
         ...item,
         isModified: false,
         isNew: false,
-      })),
+      }))
     )
 
     setSuccessMessage(`${modifiedItems.length} registro(s) salvo(s) com sucesso`)
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
+    setTimeout(() => setSuccessMessage(""), 3000)
   }
 
   return (
@@ -184,13 +147,12 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-semibold">Editor de Portfolio</h2>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2" onClick={() => setIsAddDialogOpen(true)}>
+          <Button variant="outline" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             Inserir Novos Registros
           </Button>
           <Button
             variant="destructive"
-            className="flex items-center gap-2"
             onClick={handleDeleteSelected}
             disabled={!portfolioItems.some((item) => item.isSelected)}
           >
@@ -212,11 +174,11 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
       )}
 
       <div className="mb-6 overflow-x-auto">
-        <Table className="border-collapse">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[40px]">
-                <Checkbox checked={selectAll} onCheckedChange={handleSelectAll} aria-label="Selecionar todos" />
+                <Checkbox checked={selectAll} onCheckedChange={handleSelectAll} />
               </TableHead>
               <TableHead className="w-[300px]">Nome do Produto</TableHead>
               <TableHead className="w-[200px]">País</TableHead>
@@ -231,7 +193,6 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
                     <Checkbox
                       checked={item.isSelected}
                       onCheckedChange={(checked) => handleSelectItem(item.id, !!checked)}
-                      aria-label="Selecionar item"
                     />
                   </TableCell>
                   <TableCell>{item.productName}</TableCell>
@@ -283,7 +244,6 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
         </Button>
       )}
 
-      {/* Dialog for adding new items */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>

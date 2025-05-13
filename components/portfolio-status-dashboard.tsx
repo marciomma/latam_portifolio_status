@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Filter } from "lucide-react"
+import { useState, useEffect } from "react";
+import { Filter } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { StatusTable } from "@/components/status-table"
-import { StatusUpdateForm } from "@/components/status-update-form"
-import { CountryEditor } from "@/components/country-editor"
-import { ProductsEditor } from "@/components/products-editor"
-import { CategoriesProceduresEditor } from "@/components/categories-procedures-editor"
-import { PortfolioService } from "@/services/portfolio-service"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StatusTable } from "@/components/status-table";
+import { StatusUpdateForm } from "@/components/status-update-form";
+import { CountryEditor } from "@/components/country-editor";
+import { ProductsEditor } from "@/components/products-editor";
+import {CategoriesProceduresEditor} from "@/components/categories-procedures-editor";
+import { PortfolioService } from "@/services/portfolio-service";
 
 import type {
   Country,
@@ -19,70 +19,74 @@ import type {
   Procedure,
   ProductType,
   Status
-} from "@/types/database"
+} from "@/types/database";
 
-export function PortfolioStatusDashboard() {
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([])
-  const [showFilters, setShowFilters] = useState(false)
+export default function PortfolioStatusDashboard() {
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const [countries, setCountries] = useState<Country[]>([])
-  const [portfolioData, setPortfolioData] = useState<PortfolioStatusView[]>([])
-  const [procedures, setProcedures] = useState<Procedure[]>([])
-  const [productTypes, setProductTypes] = useState<ProductType[]>([])
-  const [statuses, setStatuses] = useState<Status[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [portfolioData, setPortfolioData] = useState<PortfolioStatusView[]>([]);
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [
-          countriesData,
-          portfolioViewData,
-          proceduresData,
-          productTypesData,
-          statusesData
-        ] = await Promise.all([
-          PortfolioService.getCountries(),
-          PortfolioService.getPortfolioStatusView(),
-          PortfolioService.getProcedures(),
-          PortfolioService.getProductTypes(),
-          PortfolioService.getStatuses()
-        ])
-
-        setCountries(countriesData)
-        setPortfolioData(portfolioViewData)
-        setProcedures(proceduresData)
-        setProductTypes(productTypesData)
-        setStatuses(statusesData)
-        setSelectedCountries(countriesData.map((c) => c.id))
-        setIsLoading(false)
+        // Usar a API que criamos para carregar todos os dados de uma vez
+        const response = await fetch('/api/load-dashboard-data');
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Verificar os dados recebidos para depuração
+        console.log("Dados recebidos da API:", {
+          countries: data.countries?.length || 0,
+          portfolio: data.portfolioData?.length || 0,
+          procedures: data.procedures?.length || 0,
+          productTypes: data.productTypes?.length || 0,
+          statuses: data.statuses?.length || 0
+        });
+        
+        setCountries(data.countries || []);
+        setPortfolioData(data.portfolioData || []);
+        setProcedures(data.procedures || []);
+        setProductTypes(data.productTypes || []);
+        setStatuses(data.statuses || []);
+        setSelectedCountries((data.countries || []).map((c: Country) => c.id));
+        setIsLoading(false);
       } catch (error) {
-        console.error("Error loading data:", error)
-        setIsLoading(false)
+        console.error("Error loading data:", error);
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const toggleCountry = (countryId: string) => {
     setSelectedCountries((prev) =>
       prev.includes(countryId)
         ? prev.filter((c) => c !== countryId)
         : [...prev, countryId]
-    )
-  }
+    );
+  };
 
   const selectAllCountries = () => {
-    setSelectedCountries(countries.map((c) => c.id))
-  }
+    setSelectedCountries(countries.map((c) => c.id));
+  };
 
   const clearAllCountries = () => {
-    setSelectedCountries([])
-  }
+    setSelectedCountries([]);
+  };
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
   return (
@@ -211,5 +215,5 @@ export function PortfolioStatusDashboard() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

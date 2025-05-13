@@ -21,11 +21,6 @@ const config = {
     },
     extend: {
       colors: {
-        // Primary brand colors
-        primary: "#002C71",
-        secondary: "#00B5E2",
-        accent: "#BD3978",
-
         // Support colors
         "support-purple-dark": "#6D2077",
         "support-purple-light": "#91579B",
@@ -65,6 +60,7 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

@@ -2,16 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fonte padrão */
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Utilitários personalizados */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
 }
 
+/* Tokens e tema base */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -48,6 +63,7 @@ body {
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -82,12 +98,8 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+  /* Estilo base aplicado ao body */
   body {
     @apply bg-background text-foreground;
   }
