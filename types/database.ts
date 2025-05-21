@@ -51,7 +51,6 @@ export interface StatusPortfolio {
   statusId: string
   setsQty?: string // Number of sets quantity
   lastUpdated: string // ISO date string
-  updatedBy?: string // User ID
   notes?: string
 }
 
