@@ -7,6 +7,64 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Print styles */
+@media print {
+  /* Hide elements not needed in print */
+  button, 
+  .Tabs-trigger,
+  nav, 
+  [role="tablist"] {
+    display: none !important;
+  }
+
+  /* Ensure the table is displayed fully */
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Clean background and borders */
+  body {
+    background-color: white !important;
+  }
+
+  /* Ensure table takes full width */
+  table {
+    width: 100% !important;
+    page-break-inside: auto;
+  }
+
+  /* Keep headers together with their content */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure text in cells is visible */
+  td, th {
+    background-color: transparent !important;
+    color: black !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Preserve background colors for status cells */
+  td div[style*="background-color"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Add title */
+  .Card:first-of-type::before {
+    content: "Direct Market Portfolio Status";
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+}
+
 /* Utilitários personalizados */
 @layer utilities {
   .text-balance {

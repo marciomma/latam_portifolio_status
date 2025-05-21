@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Filter, Download } from "lucide-react";
+import { Filter, Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,6 +80,37 @@ export default function PortfolioStatusDashboard() {
   }, [timestamp]);
 
   useEffect(() => {
+    // Add meta tag for color printing
+    const metaTag = document.createElement('meta');
+    metaTag.name = 'color-scheme';
+    metaTag.content = 'normal';
+    document.head.appendChild(metaTag);
+    
+    // Add CSS for color printing
+    const style = document.createElement('style');
+    style.textContent = `
+      @page {
+        size: landscape;
+        margin: 10mm;
+      }
+      @media print {
+        html, body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(metaTag);
+      if (style.parentNode) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('reload')) {
       setTimestamp(Date.now());
@@ -113,231 +144,53 @@ export default function PortfolioStatusDashboard() {
     setSelectedCountries([]);
   };
 
-  const exportTableToPdf = async () => {
-    try {
-      // Dynamically import jsPDF to avoid SSR issues
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-      });
-      
-      // Add title
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.text('Direct Market Portfolio Status', 14, 15);
-      
-      // Add status legend
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(10);
-      doc.text('Status Legend:', 14, 25);
-      
-      // Draw status legend items
-      const legendItems = statuses.filter(s => s.code);
-      let xPosition = 14;
-      const legendY = 28;
-      
-      legendItems.forEach((status) => {
-        try {
-          const color = status.color || '#FFFFFF';
-          const rgb = parseColor(color);
-          doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-          doc.rect(xPosition, legendY, 3, 3, 'F');
-          doc.setTextColor(0, 0, 0);
-          doc.text(status.name, xPosition + 5, legendY + 3);
-        } catch (e) {
-          console.error("Error drawing legend item:", e);
-        }
-        xPosition += 45;
-      });
-      
-      // Get table element
-      if (statusTableRef.current) {
-        const originalTable = statusTableRef.current.querySelector('table');
-        
-        if (originalTable) {
-          // Clone the table to avoid modifying the original
-          const tableClone = originalTable.cloneNode(true) as HTMLTableElement;
-          
-          // Find all product cells with lifecycle info and modify their format
-          const productCells = tableClone.querySelectorAll('td div.text-xs');
-          productCells.forEach(div => {
-            const parentCell = div.closest('td');
-            if (!parentCell) return;
-            
-            // Get all div.text-xs elements in this cell
-            const divs = Array.from(parentCell.querySelectorAll('div.text-xs'));
-            if (divs.length < 2) return;
-            
-            // Get product name and lifecycle
-            const productName = divs[0].textContent?.trim() || '';
-            let lifecycle = divs[1].textContent?.trim() || '';
-            
-            // Log original values for debugging
-            console.log("Original:", productName, lifecycle);
-            
-            // Remove parentheses
-            lifecycle = lifecycle.replace(/[()]/g, '');
-            
-            // Replace the content of the cell with our formatted text
-            if (productName && lifecycle) {
-              // Clear the cell
-              while (parentCell.firstChild) {
-                parentCell.removeChild(parentCell.firstChild);
-              }
-              
-              // Add formatted text with a space before and after the dash
-              const formattedText = `${productName} - ${lifecycle}`;
-              console.log("Formatted:", formattedText);
-              
-              parentCell.appendChild(document.createTextNode(formattedText));
-            }
-          });
-          
-          // Use autotable with our modified HTML
-          autoTable(doc, {
-            html: tableClone,
-            startY: 35,
-            theme: 'grid',
-            styles: { 
-              fontSize: 8, 
-              cellPadding: 2,
-              overflow: 'linebreak',
-              halign: 'center',
-              valign: 'middle',
-            },
-            headStyles: { 
-              fillColor: [240, 240, 240], 
-              textColor: [0, 0, 0],
-              fontStyle: 'bold'
-            },
-            columnStyles: {
-              0: { cellWidth: 35 },  // Categoria
-              1: { cellWidth: 35 },  // Procedimento
-              2: { cellWidth: 35 },  // Tipo de Produto
-              // Para todas as colunas de Tier 1 e Tier 2, use a mesma largura
-            },
-            didParseCell: function(data) {
-              try {
-                const td = data.cell.raw as HTMLTableCellElement;
-                if (!td) return;
-                
-                // Handle background colors
-                if (td.style && td.style.backgroundColor && td.style.backgroundColor !== 'transparent') {
-                  const rgb = parseColor(td.style.backgroundColor);
-                  if (rgb.length === 3) {
-                    data.cell.styles.fillColor = [rgb[0], rgb[1], rgb[2]];
-                  }
-                }
-                
-                // Ensure text formatting is preserved
-                if (data.cell.text && Array.isArray(data.cell.text)) {
-                  // Check if we have product text that needs formatting
-                  const text = data.cell.text.join(' ');
-                  if (text.includes('(Flagship)')) {
-                    data.cell.text = [text.replace('(Flagship)', ' (Flagship)')];
-                  } else if (text.includes('(Maintain)')) {
-                    data.cell.text = [text.replace('(Maintain)', ' (Maintain)')];
-                  } else if (text.includes('(De-emphasize)')) {
-                    data.cell.text = [text.replace('(De-emphasize)', ' (De-emphasize)')];
-                  }
-                }
-
-                // Aqui você pode definir a largura para colunas além das 3 primeiras
-                if (data.column.index > 2) {
-                  data.cell.styles.cellWidth = 25; // Largura fixa para colunas de produtos
-                }
-              } catch (e) {
-                console.error("Error parsing cell:", e);
-              }
-            },
-            didDrawPage: (data) => {
-              // Add page number at the bottom of each page
-              const pageSize = doc.internal.pageSize;
-              const pageNumber = data.pageNumber;
-              
-              doc.setFontSize(8);
-              doc.text(
-                'Page ' + pageNumber.toString(),
-                pageSize.getWidth() - 20,
-                pageSize.getHeight() - 10
-              );
-            }
-          });
-          
-          // Save the PDF
-          doc.save('portfolio-status.pdf');
-        }
-      }
-    } catch (error) {
-      console.error("Error exporting PDF:", error);
-      alert("Failed to export PDF. See console for details.");
-    }
-  };
-  
-  // More robust color parser that handles different color formats
-  const parseColor = (color: string): number[] => {
-    // Default to black if color parsing fails
-    const defaultColor = [0, 0, 0];
+  const handlePrint = () => {
+    // Create print-only legend
+    const printLegend = document.createElement('div');
+    printLegend.className = 'print-only-legend';
+    printLegend.style.cssText = 'display: none; margin-bottom: 20px;';
     
-    try {
-      // Handle hex format
-      if (color.startsWith('#')) {
-        return hexToRgb(color);
-      }
-      
-      // Handle rgb/rgba format
-      if (color.startsWith('rgb')) {
-        const match = color.match(/(\d+),\s*(\d+),\s*(\d+)/);
-        if (match) {
-          return [
-            parseInt(match[1], 10),
-            parseInt(match[2], 10),
-            parseInt(match[3], 10)
-          ];
-        }
-      }
-      
-      // Handle named colors
-      if (color === 'transparent') {
-        return [255, 255, 255]; // White for transparent
-      }
-      
-      return defaultColor;
-    } catch (e) {
-      console.error("Error parsing color:", color, e);
-      return defaultColor;
+    // Add title and legend
+    const legendHTML = `
+      <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 10px; text-align: center;">
+        Direct Market Portfolio Status
+      </h1>
+      <div style="margin-top: 5px; margin-bottom: 15px;">
+        <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">Status Legend:</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+          ${statuses
+            .filter(s => s.code)
+            .map(status => `
+              <div style="display: flex; align-items: center; margin-right: 15px;">
+                <div style="width: 12px; height: 12px; background-color: ${status.color}; margin-right: 5px;"></div>
+                <span style="font-size: 12px;">${status.name}</span>
+              </div>
+            `).join('')}
+        </div>
+      </div>
+    `;
+    
+    printLegend.innerHTML = legendHTML;
+    
+    // Add to document before printing
+    if (statusTableRef.current?.parentNode) {
+      statusTableRef.current.parentNode.insertBefore(printLegend, statusTableRef.current);
     }
-  };
-  
-  // Helper function to convert hex color to RGB array for jsPDF
-  const hexToRgb = (hex: string): number[] => {
-    try {
-      // Remove # if present
-      hex = hex.replace('#', '');
-      
-      // Handle shorthand hex (e.g. #ABC)
-      if (hex.length === 3) {
-        hex = hex.split('').map(c => c + c).join('');
+    
+    // Show legend only for printing
+    window.addEventListener('beforeprint', () => {
+      printLegend.style.display = 'block';
+    });
+    
+    // Hide legend after printing
+    window.addEventListener('afterprint', () => {
+      if (printLegend.parentNode) {
+        printLegend.parentNode.removeChild(printLegend);
       }
-      
-      // Convert to RGB
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      
-      // Validate the values
-      if (isNaN(r) || isNaN(g) || isNaN(b)) {
-        return [0, 0, 0]; // Default to black if parsing fails
-      }
-      
-      return [r, g, b];
-    } catch (e) {
-      console.error("Error converting hex to RGB:", hex, e);
-      return [0, 0, 0]; // Default to black if any error occurs
-    }
+    });
+    
+    // Trigger print
+    window.print();
   };
 
   if (isLoading) {
@@ -354,12 +207,12 @@ export default function PortfolioStatusDashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={exportTableToPdf}
+                onClick={handlePrint}
                 className="flex items-center gap-2"
                 disabled={activeTab !== "view"}
               >
-                <Download className="h-4 w-4" />
-                Export PDF
+                <Printer className="h-4 w-4" />
+                Print
               </Button>
               <Button
                 variant="outline"
