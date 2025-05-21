@@ -48,7 +48,6 @@ export function CountryEditor({
   const [deletedProductsByCountry, setDeletedProductsByCountry] = useState<Record<string, Set<string>>>({})
   // Estado para controlar o país selecionado internamente
   const [selectedCountry, setSelectedCountry] = useState<string>("")
-  const [isRedirecting, setIsRedirecting] = useState(false);
   // Estado para ordenação
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' | null }>({
     key: 'product',
@@ -161,7 +160,7 @@ export function CountryEditor({
           id: `existing-${item.id}`,
           productId: item.productId,
           statusId: countryStatus?.statusId || "",
-          setsQty: "", // Initialize setsQty
+          setsQty: countryStatus?.setsQty || "", // Use setsQty from database
           isModified: false,
           isDeleted: false
         }
@@ -322,33 +321,80 @@ export function CountryEditor({
           }))
       );
       
-      // Notificar o componente pai
+      // Notificar o componente pai para atualizar os dados
       if (onSaveComplete) {
         onSaveComplete();
       }
       
-      // Atualizar dados localmente em vez de recarregar a página
-      loadCountryData(selectedCountry);
-      
-      // Se o usuário quiser navegar para a tela View Status, definir um flag
-      // mas não recarregar a página diretamente
-      setIsRedirecting(true);
-      
-      // Dar tempo para o componente pai atualizar os dados
-      setTimeout(() => {
-        if (isRedirecting) {
-          // Configurar URL para View Status com o país selecionado
-          const url = new URL(window.location.origin);
+      // Recarregar dados do zero, forçando atualização do Redis
+      const forceRefreshData = async () => {
+        try {
+          setSuccessMessage("Refreshing data from server...");
           
-          // Garantir que os parâmetros de URL atuais sejam mantidos
+          // Primeiro, forçar a reconstrução da view de portfólio no Redis
+          await PortfolioService.rebuildPortfolioStatusView();
+          
+          // Pequeno delay para garantir que o Redis foi atualizado
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Agora buscar dados atualizados
+          const freshPortfolioData = await PortfolioService.getPortfolioStatusView();
+          
+          // Atualizar o componente com os dados novos
           if (selectedCountry) {
-            url.searchParams.set('country', selectedCountry);
+            // Atualizar o estado do componente pai, se disponível
+            if (onSaveComplete) {
+              await onSaveComplete();
+            }
+            
+            console.log("Reloading with fresh data:", freshPortfolioData.length, "products");
+            
+            // Atualizar localmente também
+            const freshCountryLines = freshPortfolioData
+              .filter(item => 
+                item.countryStatuses.some(cs => cs.countryId === selectedCountry) && 
+                !deletedProductsByCountry[selectedCountry]?.has(item.productId)
+              )
+              .map(item => {
+                const countryStatus = item.countryStatuses.find(cs => cs.countryId === selectedCountry);
+                return {
+                  id: `existing-${item.id}`,
+                  productId: item.productId,
+                  statusId: countryStatus?.statusId || "",
+                  setsQty: countryStatus?.setsQty || "",
+                  isModified: false,
+                  isDeleted: false
+                };
+              });
+            
+            console.log("Found", freshCountryLines.length, "lines for country", selectedCountry);
+            
+            if (freshCountryLines.length === 0) {
+              // Se não há dados, criar linha em branco
+              setCountryLines([{
+                id: `line-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                productId: "",
+                statusId: "",
+                setsQty: "",
+                isModified: true,
+                isDeleted: false
+              }]);
+            } else {
+              // Se há dados, usar eles
+              setCountryLines(freshCountryLines);
+            }
+            
+            setSuccessMessage("Data refreshed successfully");
+            setTimeout(() => setSuccessMessage(""), 3000);
           }
-          
-          // Substituir a localização em vez de recarregar
-          window.location.href = `/?country=${selectedCountry}`;
+        } catch (error) {
+          console.error('Error refreshing data:', error);
+          setSuccessMessage(`Error refreshing data: ${error instanceof Error ? error.message : String(error)}`);
         }
-      }, 500);
+      };
+      
+      // Executar a atualização forçada
+      forceRefreshData();
       
     } catch (error) {
       console.error('Error saving changes:', error);
@@ -526,6 +572,38 @@ export function CountryEditor({
             <Save className="h-4 w-4 mr-2" />
             Save
           </Button>
+          
+          <Button
+            variant="outline"
+            onClick={async () => {
+              // Reload data with complete rebuild
+              try {
+                setSuccessMessage("Refreshing data from server...");
+                
+                // Forçar a reconstrução completa da view no Redis
+                await PortfolioService.rebuildPortfolioStatusView();
+                
+                // Pequeno delay para garantir atualização do Redis
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Buscar dados frescos
+                await PortfolioService.getPortfolioStatusView();
+                
+                // Recarregar os dados do país
+                if (selectedCountry) {
+                  loadCountryData(selectedCountry);
+                }
+                
+                setSuccessMessage("Data reloaded successfully");
+                setTimeout(() => setSuccessMessage(""), 3000);
+              } catch (error) {
+                console.error('Error reloading data:', error);
+                setSuccessMessage(`Error reloading data: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }}
+          >
+            Reload
+          </Button>
         </div>
       </div>
 
@@ -535,20 +613,20 @@ export function CountryEditor({
           <TableHeader>
             <TableRow>
               <TableHead 
-                className="w-[300px] cursor-pointer hover:bg-slate-50" 
+                className="w-[400px] cursor-pointer hover:bg-slate-50" 
                 onClick={() => requestSort('product')}
               >
                 Product {getSortIcon('product')}
               </TableHead>
               <TableHead 
-                className="w-[25%] cursor-pointer hover:bg-slate-50" 
+                className="w-[18%] cursor-pointer hover:bg-slate-50" 
                 onClick={() => requestSort('status')}
               >
                 Status {getSortIcon('status')}
               </TableHead>
               <TableHead className="w-[100px]">Sets Qty</TableHead>
               <TableHead 
-                className="w-[25%] cursor-pointer hover:bg-slate-50" 
+                className="w-[22%] cursor-pointer hover:bg-slate-50" 
                 onClick={() => requestSort('procedure')}
               >
                 Category / Procedure {getSortIcon('procedure')}
