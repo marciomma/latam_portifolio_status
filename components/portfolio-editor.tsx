@@ -126,20 +126,57 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
     setTimeout(() => setSuccessMessage(""), 3000)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const modifiedItems = portfolioItems.filter((item) => item.isModified)
     if (modifiedItems.length === 0) return
 
-    setPortfolioItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        isModified: false,
-        isNew: false,
-      }))
-    )
+    try {
+      // Preparar atualizações no formato esperado pela API
+      const updates = modifiedItems.map(item => ({
+        productId: item.productId,
+        countryId: item.countryId,
+        statusId: item.statusId
+      }));
+      
+      // Usar a nova API para persistir as alterações
+      const response = await fetch('/api/update-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
 
-    setSuccessMessage(`${modifiedItems.length} registro(s) salvo(s) com sucesso`)
-    setTimeout(() => setSuccessMessage(""), 3000)
+      if (!response.ok) {
+        throw new Error(`Erro ao salvar: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Resultado da atualização:', result);
+      
+      // Marcar todos os itens como não modificados
+      setPortfolioItems((prev) =>
+        prev.map((item) => ({
+          ...item,
+          isModified: false,
+          isNew: false,
+        }))
+      )
+
+      // Exibir mensagem de sucesso
+      setSuccessMessage(`${modifiedItems.length} registro(s) salvo(s) com sucesso`)
+      
+      // Recarregar a página após 2 segundos para mostrar os dados atualizados
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      console.error('Erro ao salvar alterações:', error);
+      setSuccessMessage(`Erro ao salvar: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Limpar mensagem de erro após 3 segundos
+      setTimeout(() => setSuccessMessage(""), 3000)
+    }
   }
 
   return (

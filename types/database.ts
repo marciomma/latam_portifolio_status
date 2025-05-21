@@ -49,6 +49,7 @@ export interface StatusPortfolio {
   productId: string
   countryId: string
   statusId: string
+  setsQty?: string // Number of sets quantity
   lastUpdated: string // ISO date string
   updatedBy?: string // User ID
   notes?: string
@@ -74,5 +75,6 @@ export interface PortfolioStatusView {
     statusName: string
     statusColor: string
     lastUpdated: string
+    setsQty?: string // Add setsQty to countryStatuses as well
   }[]
 }

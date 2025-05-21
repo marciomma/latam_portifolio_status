@@ -1,24 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Check, Plus, Save, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PortfolioService } from "@/services/portfolio-service";
+import type { Procedure } from "@/types/database";
 
 type EditableCategory = {
   id: string;
   name: string;
-  description?: string;
   isActive: boolean;
   isNew?: boolean;
   isModified?: boolean;
   isSelected?: boolean;
-  isExpanded?: boolean;
 };
 
 type EditableProcedure = {
   id: string;
   name: string;
   category: string;
-  description?: string;
   isActive: boolean;
   isNew?: boolean;
   isModified?: boolean;
@@ -28,47 +32,485 @@ type EditableProcedure = {
 export function CategoriesProceduresEditor() {
   const [categories, setCategories] = useState<EditableCategory[]>([]);
   const [procedures, setProcedures] = useState<EditableProcedure[]>([]);
+  const [selectedProcedures, setSelectedProcedures] = useState<string[]>([]);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const proceduresData = await PortfolioService.getProcedures();
-        const uniqueCategories = Array.from(new Set(proceduresData.map((proc) => proc.category)));
-
-        const categoriesData: EditableCategory[] = uniqueCategories.map((category, index) => ({
-          id: `category-${index + 1}`,
-          name: category,
-          description: `Description for ${category}`,
-          isActive: true,
-          isModified: false,
-          isSelected: false,
-          isExpanded: false,
-        }));
-
-        const proceduresData2: EditableProcedure[] = proceduresData.map((procedure) => ({
-          id: procedure.id,
-          name: procedure.name,
-          category: procedure.category,
-          description: procedure.description || "",
-          isActive: procedure.isActive,
-          isModified: false,
-          isSelected: false,
-        }));
-
-        setCategories(categoriesData);
-        setProcedures(proceduresData2);
-      } catch (error) {
-        console.error("Erro ao carregar procedimentos do Redis:", error);
-      }
-    };
-
     loadData();
   }, []);
 
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const proceduresData = await PortfolioService.getProcedures();
+      
+      // Extract unique categories from procedures
+      const uniqueCategories = Array.from(new Set(proceduresData.map((proc) => proc.category)));
+
+      const categoriesData: EditableCategory[] = uniqueCategories.map((category) => {
+        // Generate a stable ID based on the category name
+        const categoryId = `category-${category.toLowerCase().replace(/\s+/g, '-')}`;
+        
+        return {
+          id: categoryId,
+          name: category,
+          isActive: true,
+          isModified: false,
+          isSelected: false,
+        }
+      });
+
+      const proceduresData2: EditableProcedure[] = proceduresData.map((procedure) => ({
+        id: procedure.id,
+        name: procedure.name,
+        category: procedure.category,
+        isActive: procedure.isActive,
+        isModified: false,
+        isSelected: false,
+      }));
+
+      setCategories(categoriesData);
+      setProcedures(proceduresData2);
+      setErrorMessage("");
+    } catch (error) {
+      console.error("Error loading procedures from Redis:", error);
+      setErrorMessage(`Error loading data: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setSuccessMessage("");
+      setErrorMessage("");
+      
+      // Filter only modified or new procedures
+      const proceduresToSave = procedures.filter(p => p.isModified || p.isNew);
+      
+      if (proceduresToSave.length === 0) {
+        setSuccessMessage("No changes to save.");
+        return;
+      }
+      
+      console.log(`Saving ${proceduresToSave.length} procedures`);
+      
+      // Check for duplicate names
+      const names = proceduresToSave.map(p => p.name.trim().toLowerCase());
+      const duplicateNames = names.filter((name, index) => names.indexOf(name) !== index);
+      
+      if (duplicateNames.length > 0) {
+        setErrorMessage(`Duplicate procedure names found: ${[...new Set(duplicateNames)].join(', ')}`);
+        return;
+      }
+      
+      // Prepare data for saving
+      const proceduresToUpdate = proceduresToSave.map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        isActive: p.isActive === undefined ? true : p.isActive
+      }));
+      
+      // Use the fetch API to save procedures
+      const response = await fetch('/api/debug/procedures/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ procedures: proceduresToUpdate }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || `Error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Reload data to ensure consistency
+        await loadData();
+        setSuccessMessage(`${proceduresToSave.length} procedures saved successfully! Total: ${result.totalProcedures || 'N/A'} procedures.`);
+      } else {
+        throw new Error(result.message || 'Unknown error while saving procedures');
+      }
+    } catch (error) {
+      console.error('Error saving procedures:', error);
+      setErrorMessage(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      setSuccessMessage("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProcedureChange = (procedureId: string, field: keyof EditableProcedure, value: any) => {
+    // Special check for the 'name' field to avoid duplicates
+    if (field === 'name') {
+      const lowerCaseValue = String(value).trim().toLowerCase();
+      
+      const duplicate = procedures.find(p => 
+        p.id !== procedureId && p.name.trim().toLowerCase() === lowerCaseValue
+      );
+      
+      if (duplicate) {
+        setErrorMessage(`Duplicate name: "${value}" is already used by another procedure.`);
+        setTimeout(() => setErrorMessage(""), 5000);
+        return;
+      }
+    }
+    
+    setProcedures(prev => 
+      prev.map(procedure => 
+        procedure.id === procedureId 
+          ? { ...procedure, [field]: value, isModified: true } 
+          : procedure
+      )
+    );
+  };
+
+  const handleSelectProcedure = (procedureId: string, selected: boolean) => {
+    setSelectedProcedures(prev => 
+      selected 
+        ? [...prev, procedureId] 
+        : prev.filter(id => id !== procedureId)
+    );
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      const filteredProcedureIds = procedures
+        .filter(p => categoryFilter === "all" || p.category === categoryFilter)
+        .map(p => p.id);
+      
+      setSelectedProcedures(filteredProcedureIds);
+    } else {
+      setSelectedProcedures([]);
+    }
+  };
+
+  const handleAddProcedure = () => {
+    const procedureId = `procedure-${Date.now()}`;
+    
+    // Default values based on current filter
+    const defaultCategory = categoryFilter !== "all" ? categoryFilter :
+                           categories.length > 0 ? categories[0].name : "CERVICAL";
+    
+    // Create a default name for the new procedure
+    let defaultName = `New ${defaultCategory} Procedure`;
+    let counter = 1;
+    
+    // Check if name already exists (case insensitive)
+    while (procedures.some(p => p.name.toLowerCase() === defaultName.toLowerCase())) {
+      defaultName = `New ${defaultCategory} Procedure ${counter}`;
+      counter++;
+    }
+    
+    const newProcedure: EditableProcedure = {
+      id: procedureId,
+      name: defaultName,
+      category: defaultCategory,
+      isActive: true,
+      isNew: true,
+      isModified: true,
+      isSelected: false
+    };
+
+    setProcedures(prev => [...prev, newProcedure]);
+    
+    setSuccessMessage("New procedure added. Edit the details as needed and save to complete.");
+    setTimeout(() => setSuccessMessage(""), 3000);
+  };
+
+  const handleShowAddCategory = () => {
+    setIsAddingCategory(true);
+    setNewCategoryName("");
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) {
+      setErrorMessage("Category name cannot be empty");
+      return;
+    }
+    
+    // Check if category already exists (case insensitive)
+    if (categories.some(c => c.name.toLowerCase() === newCategoryName.trim().toLowerCase())) {
+      setErrorMessage(`Category "${newCategoryName}" already exists`);
+      return;
+    }
+    
+    const newCategory: EditableCategory = {
+      id: `category-${Date.now()}`,
+      name: newCategoryName.trim(),
+      isActive: true,
+      isNew: true,
+      isModified: true,
+      isSelected: false
+    };
+
+    setCategories(prev => [...prev, newCategory]);
+    setCategoryFilter(newCategory.name);
+    
+    setSuccessMessage(`Category "${newCategory.name}" added. Add procedures to this category as needed.`);
+    setTimeout(() => setSuccessMessage(""), 3000);
+    
+    setIsAddingCategory(false);
+    setNewCategoryName("");
+  };
+
+  const handleCancelAddCategory = () => {
+    setIsAddingCategory(false);
+    setNewCategoryName("");
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedProcedures.length === 0) return;
+    
+    try {
+      // Call API to delete procedures
+      const response = await fetch(`/api/procedures?ids=${selectedProcedures.join(',')}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error deleting: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Delete result:', result);
+      
+      // Remove procedures from local state
+      setProcedures(prev => prev.filter(procedure => !selectedProcedures.includes(procedure.id)));
+      setSelectedProcedures([]);
+      
+      // Show success message
+      setSuccessMessage(`${selectedProcedures.length} procedure(s) deleted successfully!`);
+      
+      // Clean up any categories that no longer have procedures
+      const remainingCategories = new Set(procedures
+        .filter(p => !selectedProcedures.includes(p.id))
+        .map(p => p.category));
+        
+      setCategories(prev => prev.filter(c => remainingCategories.has(c.name)));
+      
+      setTimeout(() => {
+        loadData(); // Reload to ensure consistency
+      }, 2000);
+    } catch (error) {
+      console.error('Error deleting procedures:', error);
+      setErrorMessage(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      setTimeout(() => setErrorMessage(""), 3000);
+    }
+  };
+
+  // Filter procedures based on selected category
+  const filteredProcedures = procedures.filter(procedure => 
+    categoryFilter === "all" || procedure.category === categoryFilter
+  );
+
+  // Check if all procedures are selected
+  const allSelected = filteredProcedures.length > 0 && 
+                     filteredProcedures.every(procedure => selectedProcedures.includes(procedure.id));
+
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Editor de Categorias e Procedimentos</h2>
-      <p>Componente em construção. Dados carregados do Redis com sucesso.</p>
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Categories & Procedures Editor</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleShowAddCategory} disabled={loading || isAddingCategory}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+          <Button variant="outline" onClick={handleAddProcedure} disabled={loading}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Procedure
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={handleDeleteSelected}
+            disabled={selectedProcedures.length === 0 || loading}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Selected
+          </Button>
+          <Button
+            variant="outline"
+            onClick={loadData}
+            disabled={loading}
+          >
+            Reload
+          </Button>
+        </div>
+      </div>
+
+      {isAddingCategory && (
+        <Card className="mb-6 border-blue-500">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Add New Category</h3>
+                <Button variant="ghost" size="sm" onClick={handleCancelAddCategory}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Input 
+                  value={newCategoryName} 
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Enter category name"
+                  className="flex-1"
+                />
+                <Button onClick={handleAddCategory}>Add</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {successMessage && (
+        <Card className="mb-6 border-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-green-600">
+              <Check className="h-5 w-5" />
+              <p>{successMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {errorMessage && (
+        <Card className="mb-6 border-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <p>{errorMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {loading && (
+        <Card className="mb-6 border-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-blue-600">
+              <p>Loading data...</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mb-6">
+        <div className="flex items-center gap-4">
+          <div className="font-medium">Filter by Category:</div>
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant={categoryFilter === "all" ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setCategoryFilter("all")}
+            >
+              All
+            </Button>
+            {categories.map(category => (
+              <Button
+                key={category.id}
+                variant={categoryFilter === category.name ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCategoryFilter(category.name)}
+              >
+                {category.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox 
+                  checked={allSelected && filteredProcedures.length > 0} 
+                  onCheckedChange={handleSelectAll}
+                  disabled={filteredProcedures.length === 0}
+                />
+              </TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="w-[600px]">Procedure Name</TableHead>
+              <TableHead className="w-[200px]">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredProcedures.length > 0 ? (
+              filteredProcedures.map((procedure) => (
+                <TableRow 
+                  key={procedure.id}
+                  className={procedure.isNew ? "bg-blue-50" : procedure.isModified ? "bg-yellow-50" : ""}
+                >
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedProcedures.includes(procedure.id)} 
+                      onCheckedChange={(checked) => handleSelectProcedure(procedure.id, !!checked)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={procedure.category} 
+                      onChange={(e) => handleProcedureChange(procedure.id, 'category', e.target.value)}
+                    >
+                      {categories
+                        .slice()
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((category) => (
+                          <option key={category.id} value={category.name}>
+                            {category.name}
+                          </option>
+                        ))}
+                    </select>
+                  </TableCell>
+                  <TableCell>
+                    <Input 
+                      value={procedure.name} 
+                      onChange={(e) => handleProcedureChange(procedure.id, 'name', e.target.value)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={procedure.isActive ? "active" : "inactive"} 
+                      onChange={(e) => handleProcedureChange(procedure.id, 'isActive', e.target.value === "active")}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                  {categoryFilter !== "all" 
+                    ? "No procedures found for this category. Add a new procedure."
+                    : "No procedures found. Add your first procedure."}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {(procedures.some((item) => item.isModified) || procedures.some((item) => item.isNew)) && (
+        <Button onClick={handleSave} className="w-full">
+          <Save className="mr-2 h-4 w-4" />
+          Save Changes
+        </Button>
+      )}
     </div>
   );
 }

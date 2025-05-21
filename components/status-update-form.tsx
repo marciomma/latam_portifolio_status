@@ -130,7 +130,7 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Collect all updates
     const updates: {
       productId: string
@@ -154,19 +154,43 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
 
     // Save updates
     if (updates.length > 0) {
-      PortfolioService.bulkUpdateStatus(updates)
+      try {
+        // Usar a nova API para persistir as alterações
+        const response = await fetch('/api/update-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updates),
+        });
 
-      // Show success message
-      setSuccessMessage(`Status atualizado com sucesso para ${updates.length} itens`)
+        if (!response.ok) {
+          throw new Error(`Erro ao salvar: ${response.status}`);
+        }
 
-      // Reset modified flags
-      setEditableData(
-        editableData.map((item) => ({
-          ...item,
-          isModified: false,
-          modifiedStatuses: {},
-        })),
-      )
+        const result = await response.json();
+        console.log('Resultado da atualização:', result);
+
+        // Mostrar mensagem de sucesso
+        setSuccessMessage(`Status atualizado com sucesso para ${updates.length} itens`);
+
+        // Reset modified flags
+        setEditableData(
+          editableData.map((item) => ({
+            ...item,
+            isModified: false,
+            modifiedStatuses: {},
+          }))
+        );
+
+        // Recarregar a página após 1 segundo para mostrar os dados atualizados
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } catch (error) {
+        console.error('Erro ao salvar alterações:', error);
+        setSuccessMessage(`Erro ao salvar: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
 
     // Clear success message after 3 seconds
@@ -192,7 +216,7 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Atualizar Status de Produto</h2>
+        <h2 className="text-xl font-semibold">Update Product Status</h2>
         <Button
           variant="outline"
           size="sm"
@@ -200,7 +224,7 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
           className="flex items-center gap-2"
         >
           <Filter className="h-4 w-4" />
-          {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
+          {showFilters ? "Hide Filters" : "Show Filters"}
         </Button>
       </div>
 
@@ -220,52 +244,62 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
           <CardContent className="p-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">País</label>
+                <label className="text-sm font-medium">Country</label>
                 <Select value={countryFilter} onValueChange={setCountryFilter}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por país" />
+                    <SelectValue placeholder="Filter by country" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os Países</SelectItem>
-                    {countries.map((country) => (
-                      <SelectItem key={country.id} value={country.id}>
-                        {country.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">All Countries</SelectItem>
+                    {countries
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((country) => (
+                        <SelectItem key={country.id} value={country.id}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Procedimento</label>
+                <label className="text-sm font-medium">Procedure</label>
                 <Select value={procedureFilter} onValueChange={setProcedureFilter}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por procedimento" />
+                    <SelectValue placeholder="Filter by procedure" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os Procedimentos</SelectItem>
-                    {procedures.map((procedure) => (
-                      <SelectItem key={procedure.id} value={procedure.id}>
-                        {procedure.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">All Procedures</SelectItem>
+                    {procedures
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((procedure) => (
+                        <SelectItem key={procedure.id} value={procedure.id}>
+                          {procedure.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Tipo de Produto</label>
+                <label className="text-sm font-medium">Product Type</label>
                 <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por tipo de produto" />
+                    <SelectValue placeholder="Filter by product type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os Tipos de Produto</SelectItem>
-                    {productTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">All Product Types</SelectItem>
+                    {Array.from(
+                      new Set(editableData.map((item) => item.productType))
+                    )
+                      .sort((a, b) => a.localeCompare(b))
+                      .map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -274,26 +308,21 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
                 <label className="text-sm font-medium">Status</label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por status" />
+                    <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os Status</SelectItem>
-                    {statuses
-                      .filter((s) => s.code)
-                      .map((status) => (
-                        <SelectItem key={status.id} value={status.id}>
-                          {status.name}
-                        </SelectItem>
-                      ))}
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {statuses.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" size="sm" onClick={resetFilters} className="flex items-center gap-1">
-                <X className="h-4 w-4" />
-                Limpar Filtros
+              <Button variant="outline" size="sm" onClick={resetFilters} className="mt-6">
+                Reset Filters
               </Button>
             </div>
           </CardContent>

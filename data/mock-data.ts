@@ -223,9 +223,9 @@ export const products: Product[] = [
 
 export const statuses: Status[] = [
   { id: "status-1", code: "Available", name: "Available", color: "#7CD992", isActive: true },
-  { id: "status-2", code: "Not Planned", name: "Not Planned", color: "#A8A8A8", isActive: true },
-  { id: "status-3", code: "RA Submitted", name: "RA Submitted", color: "#F7E463", isActive: true },
-  { id: "status-4", code: "RA To be submitted", name: "RA To be submitted", color: "#EB6060", isActive: true },
+  { id: "status-2", code: "RA Submitted", name: "RA Submitted", color: "#A8A8A8", isActive: true },
+  { id: "status-3", code: "RA To be submitted", name: "RA To be submitted", color: "#EB6060", isActive: true },
+  { id: "status-4", code: "Not Planned", name: "Not Planned", color: "#F7E463", isActive: true },
   { id: "status-5", code: "", name: "None", color: "#FFFFFF", isActive: true },
 ]
 

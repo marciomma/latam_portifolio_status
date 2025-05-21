@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
   title: "LATAM Portfolio Status",
@@ -15,7 +16,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
-        {children}
+        <SiteHeader />
+        <main>{children}</main>
       </body>
     </html>
   );

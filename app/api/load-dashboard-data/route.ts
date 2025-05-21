@@ -8,13 +8,15 @@ export async function GET() {
       portfolioViewData,
       procedures,
       productTypes,
-      statuses
+      statuses,
+      products
     ] = await Promise.all([
       PortfolioService.getCountries(),
       PortfolioService.getPortfolioStatusView(),
       PortfolioService.getProcedures(),
       PortfolioService.getProductTypes(),
-      PortfolioService.getStatuses()
+      PortfolioService.getStatuses(),
+      PortfolioService.getProducts()
     ]);
 
     return NextResponse.json({
@@ -22,7 +24,8 @@ export async function GET() {
       portfolioData: portfolioViewData,
       procedures,
       productTypes,
-      statuses
+      statuses,
+      products
     });
   } catch (error) {
     console.error("Error loading dashboard data:", error);
