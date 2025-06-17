@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { Check, Plus, Save, Trash2 } from "lucide-react"
+import React, { useState, useEffect } from "react"
+import { Check, Plus, Save, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,6 +30,11 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [procedureFilter, setProcedureFilter] = useState<string>("all")
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  // Estado para ordenação
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' | null }>({
+    key: 'name',
+    direction: 'ascending'
+  });
 
   const categories = Array.from(new Set(procedures.map((proc) => proc.category)))
   const filteredProcedures = procedures.filter(
@@ -222,18 +227,6 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
     );
   };
 
-  // Função para selecionar/deselecionar todos os produtos
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      const filteredProductIds = filteredProducts
-        .map(product => product.id);
-      
-      setSelectedProducts(filteredProductIds);
-    } else {
-      setSelectedProducts([]);
-    }
-  };
-
   // Função para adicionar um novo produto na tabela
   const handleAddProduct = () => {
     const productId = `product-${Date.now()}`;
@@ -304,9 +297,88 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
            (procedureFilter === "all" || product.procedureId === procedureFilter);
   });
 
-  // Verificar se todos os produtos filtrados estão selecionados
-  const allSelected = filteredProducts.length > 0 && 
-                     filteredProducts.every(product => selectedProducts.includes(product.id));
+  // Função para alternar a ordenação
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' | null = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    } else if (sortConfig.key === key && sortConfig.direction === 'descending') {
+      direction = null;
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Função auxiliar para exibir ícone de ordenação
+  const getSortIcon = (columnName: string) => {
+    if (sortConfig.key !== columnName) {
+      return null;
+    }
+    if (sortConfig.direction === 'ascending') {
+      return <ArrowUp className="h-4 w-4 inline ml-1" />;
+    }
+    return <ArrowDown className="h-4 w-4 inline ml-1" />;
+  };
+
+  // Aplicar ordenação aos produtos filtrados
+  const sortedProducts = React.useMemo(() => {
+    if (sortConfig.direction === null) {
+      return filteredProducts;
+    }
+
+    const sortableProducts = [...filteredProducts];
+    sortableProducts.sort((a, b) => {
+      switch(sortConfig.key) {
+        case 'name':
+          return sortConfig.direction === 'ascending' 
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        
+        case 'procedure':
+          const procedureA = procedures.find(p => p.id === a.procedureId)?.name || '';
+          const procedureB = procedures.find(p => p.id === b.procedureId)?.name || '';
+          return sortConfig.direction === 'ascending' 
+            ? procedureA.localeCompare(procedureB)
+            : procedureB.localeCompare(procedureA);
+        
+        case 'productType':
+          const productTypeA = productTypes.find(pt => pt.id === a.productTypeId)?.name || '';
+          const productTypeB = productTypes.find(pt => pt.id === b.productTypeId)?.name || '';
+          return sortConfig.direction === 'ascending' 
+            ? productTypeA.localeCompare(productTypeB)
+            : productTypeB.localeCompare(productTypeA);
+        
+        case 'tier':
+          return sortConfig.direction === 'ascending' 
+            ? a.productTier.localeCompare(b.productTier)
+            : b.productTier.localeCompare(a.productTier);
+        
+        case 'lifecycle':
+          return sortConfig.direction === 'ascending' 
+            ? a.productLifeCycle.localeCompare(b.productLifeCycle)
+            : b.productLifeCycle.localeCompare(a.productLifeCycle);
+        
+        default:
+          return 0;
+      }
+    });
+    return sortableProducts;
+  }, [filteredProducts, sortConfig, procedures, productTypes]);
+
+  // Verificar se todos os produtos ordenados estão selecionados
+  const allSelected = sortedProducts.length > 0 && 
+                     sortedProducts.every(product => selectedProducts.includes(product.id));
+
+  // Função para selecionar/deselecionar todos os produtos
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      const sortedProductIds = sortedProducts
+        .map(product => product.id);
+      
+      setSelectedProducts(sortedProductIds);
+    } else {
+      setSelectedProducts([]);
+    }
+  };
 
   return (
     <div>
@@ -415,21 +487,46 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
             <TableRow>
               <TableHead className="w-[40px]">
                 <Checkbox 
-                  checked={allSelected && filteredProducts.length > 0} 
+                  checked={allSelected && sortedProducts.length > 0} 
                   onCheckedChange={handleSelectAll}
-                  disabled={filteredProducts.length === 0}
+                  disabled={sortedProducts.length === 0}
                 />
               </TableHead>
-              <TableHead className="w-[300px]">Product Name</TableHead>
-              <TableHead>Procedure</TableHead>
-              <TableHead>Product Type</TableHead>
-              <TableHead>Tier</TableHead>
-              <TableHead>Life Cycle</TableHead>
+              <TableHead 
+                className="w-[300px] cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('name')}
+              >
+                Product Name {getSortIcon('name')}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('procedure')}
+              >
+                Procedure {getSortIcon('procedure')}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('productType')}
+              >
+                Product Type {getSortIcon('productType')}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('tier')}
+              >
+                Tier {getSortIcon('tier')}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('lifecycle')}
+              >
+                Life Cycle {getSortIcon('lifecycle')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => {
+            {sortedProducts.length > 0 ? (
+              sortedProducts.map((product) => {
                 const procedure = procedures.find(p => p.id === product.procedureId);
                 const productType = productTypes.find(pt => pt.id === product.productTypeId);
                 

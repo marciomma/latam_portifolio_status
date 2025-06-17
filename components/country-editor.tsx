@@ -11,6 +11,17 @@ import { PortfolioService } from "@/services/portfolio-service"
 import type { Country, PortfolioStatusView, Procedure, Status, Product, ProductType } from "@/types/database"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface CountryEditorProps {
   portfolioData: PortfolioStatusView[]
@@ -29,7 +40,6 @@ type CountryLineItem = {
   statusId: string
   setsQty: string
   isModified: boolean
-  isDeleted?: boolean
 }
 
 export function CountryEditor({ 
@@ -53,6 +63,8 @@ export function CountryEditor({
     key: 'product',
     direction: 'ascending'
   });
+  // Estado para controlar o popup de confirmação de exclusão
+  const [productToDelete, setProductToDelete] = useState<{ lineId: string; productName: string } | null>(null);
   
   // Inicialização do país selecionado
   useEffect(() => {
@@ -67,7 +79,7 @@ export function CountryEditor({
     else if (countries.length > 0) {
       setSelectedCountry(countries[0].id);
     }
-  }, [selectedCountryIds, countries, selectedCountry]);
+  }, [selectedCountryIds, countries]);  // Remover selectedCountry da dependência para evitar loops
   
   // Usar useEffect para carregar os dados quando o país selecionado mudar
   useEffect(() => {
@@ -86,27 +98,73 @@ export function CountryEditor({
       productId: "",
       statusId: "",
       setsQty: "",
-      isModified: true,
-      isDeleted: false
+      isModified: true
     }
     
     // Limpar linhas vazias existentes e adicionar apenas a nova
     setCountryLines(prevLines => {
       // Filtrar apenas linhas com produto (remover todas as linhas vazias)
-      const nonEmptyLines = prevLines.filter(line => line.productId && !line.isDeleted);
+      const nonEmptyLines = prevLines.filter(line => line.productId);
       
       // Adicionar a nova linha vazia no início
       return [newLine, ...nonEmptyLines];
     });
   }
   
-  // Remover linha
-  const removeLine = (id: string) => {
-    // Para linhas existentes no banco, marcar como excluídas
-    if (id.startsWith('existing-')) {
-      // Identificar o produto que está sendo excluído
-      const lineToDelete = countryLines.find(line => line.id === id);
-      if (lineToDelete?.productId && selectedCountry) {
+  // Preparar para remover linha - mostra popup de confirmação
+  const prepareRemoveLine = (id: string) => {
+    const lineToDelete = countryLines.find(line => line.id === id);
+    if (!lineToDelete) return;
+
+    // Para linhas novas (sem produto selecionado), remover diretamente
+    if (!lineToDelete.productId) {
+      setCountryLines(prevLines => 
+        prevLines.filter(line => line.id !== id)
+      );
+      return;
+    }
+
+    // Para linhas com produto, mostrar confirmação
+    const product = getProduct(lineToDelete.productId);
+    const productName = product?.name || "Unknown Product";
+    
+    setProductToDelete({
+      lineId: id,
+      productName: productName
+    });
+  }
+
+  // Remover linha após confirmação
+  const confirmRemoveLine = async (id: string) => {
+    const lineToDelete = countryLines.find(line => line.id === id);
+    if (!lineToDelete || !selectedCountry) return;
+
+    try {
+      // Para linhas existentes no banco, fazer exclusão via API
+      if (id.startsWith('existing-') && lineToDelete.productId) {
+        setSuccessMessage("Deleting product...");
+        
+        // Chamar API para excluir
+        const deleteUpdate = {
+          productId: lineToDelete.productId,
+          countryId: selectedCountry,
+          statusId: "", // Status vazio indica exclusão
+          setsQty: ""
+        };
+
+        const response = await fetch('/api/update-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify([deleteUpdate]),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Error deleting: ${response.status} - ${errorText}`);
+        }
+
         // Adicionar ao registro permanente de exclusões
         setDeletedProductsByCountry(prev => {
           const updatedMap = {...prev};
@@ -116,21 +174,48 @@ export function CountryEditor({
           updatedMap[selectedCountry].add(lineToDelete.productId);
           return updatedMap;
         });
+
+        // Remover da interface
+        setCountryLines(prevLines => 
+          prevLines.filter(line => line.id !== id)
+        );
+
+        setSuccessMessage("Product deleted successfully");
+        
+        // Recarregar dados após exclusão
+        setTimeout(async () => {
+          try {
+            // Forçar reconstrução da view
+            await PortfolioService.rebuildPortfolioStatusView();
+            
+            // Pequeno delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Recarregar dados do país
+            loadCountryData(selectedCountry);
+            
+            setSuccessMessage("Data reloaded successfully");
+            setTimeout(() => setSuccessMessage(""), 3000);
+          } catch (error) {
+            console.error('Error reloading data:', error);
+            setSuccessMessage(`Error reloading data: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }, 1000);
+
+      } else {
+        // Para linhas novas, remover apenas da interface
+        setCountryLines(prevLines => 
+          prevLines.filter(line => line.id !== id)
+        );
       }
-      
-      setCountryLines(prevLines => 
-        prevLines.map(line => 
-          line.id === id 
-            ? { ...line, isDeleted: true, isModified: true }
-            : line
-        )
-      );
-    } else {
-      // Para linhas novas, remover completamente
-      setCountryLines(prevLines => 
-        prevLines.filter(line => line.id !== id)
-      );
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setSuccessMessage(`Error deleting product: ${error instanceof Error ? error.message : String(error)}`);
+      setTimeout(() => setSuccessMessage(""), 5000);
     }
+
+    // Fechar popup
+    setProductToDelete(null);
   }
 
   // Função para alterar o país selecionado
@@ -140,6 +225,7 @@ export function CountryEditor({
 
   // Carregar dados do país selecionado
   const loadCountryData = (countryId: string) => {
+    console.log('Loading country data for:', countryId);
     if (!countryId) {
       setCountryLines([])
       return
@@ -161,8 +247,7 @@ export function CountryEditor({
           productId: item.productId,
           statusId: countryStatus?.statusId || "",
           setsQty: countryStatus?.setsQty || "", // Use setsQty from database
-          isModified: false,
-          isDeleted: false
+          isModified: false
         }
       });
     
@@ -173,8 +258,7 @@ export function CountryEditor({
         productId: "",
         statusId: "",
         setsQty: "",
-        isModified: true,
-        isDeleted: false
+        isModified: true
       };
       setCountryLines([emptyLine]);
     } else {
@@ -228,65 +312,29 @@ export function CountryEditor({
 
   // Salvar alterações
   const handleSave = async () => {
-    // Identificar itens para excluir (existentes que foram marcados como excluídos)
-    const itemsToDelete = countryLines
-      .filter(line => line.isDeleted && line.id.startsWith('existing-'))
-      .map(line => {
-        const portfolioId = line.id.replace('existing-', '');
-        const portfolioItem = portfolioData.find(item => item.id === portfolioId);
-        return portfolioItem?.productId;
-      })
-      .filter((id): id is string => id !== undefined);
-    
-    // Atualizar o registro permanente de exclusões
-    if (selectedCountry && itemsToDelete.length > 0) {
-      setDeletedProductsByCountry(prev => {
-        const updatedMap = {...prev};
-        if (!updatedMap[selectedCountry]) {
-          updatedMap[selectedCountry] = new Set<string>();
-        }
-        
-        // Adicionar todas as exclusões ao conjunto
-        itemsToDelete.forEach(productId => {
-          updatedMap[selectedCountry].add(productId);
-        });
-        
-        return updatedMap;
-      });
-    }
-    
     // Filtrar linhas válidas (com produto e status selecionados) para atualizar ou criar
     const validLines = countryLines.filter(line => 
       line.productId && 
       line.statusId && 
-      line.isModified &&
-      !line.isDeleted
+      line.isModified
     );
     
-    if (validLines.length === 0 && itemsToDelete.length === 0) {
+    if (validLines.length === 0) {
       setSuccessMessage("No valid changes to save");
       setTimeout(() => setSuccessMessage(""), 3000);
       return;
     }
     
+    // Guardar o país atual para preservar após save
+    const currentSelectedCountry = selectedCountry;
+    
     // Preparar atualizações para enviar à API
-    const updates = [
-      // Atualizações e novas linhas
-      ...validLines.map(line => ({
-        productId: line.productId,
-        countryId: selectedCountry,
-        statusId: line.statusId,
-        setsQty: line.setsQty || "" // Include setsQty in updates
-      })),
-      
-      // Exclusões (usando um status especial vazio para indicar exclusão)
-      ...itemsToDelete.map(productId => ({
-        productId: productId,
-        countryId: selectedCountry,
-        statusId: "", // Status vazio indica exclusão
-        setsQty: "" // Include empty setsQty for deletions
-      }))
-    ];
+    const updates = validLines.map(line => ({
+      productId: line.productId,
+      countryId: currentSelectedCountry,
+      statusId: line.statusId,
+      setsQty: line.setsQty || "" // Include setsQty in updates
+    }));
     
     try {
       console.log("Sending updates:", updates);
@@ -308,26 +356,19 @@ export function CountryEditor({
       console.log('Update result:', result);
       
       // Mostrar mensagem de sucesso
-      const countryName = countries.find(c => c.id === selectedCountry)?.name || selectedCountry;
+      const countryName = countries.find(c => c.id === currentSelectedCountry)?.name || currentSelectedCountry;
       setSuccessMessage(`Status successfully updated for ${countryName} (${updates.length} changes)`);
       
-      // Remover linhas excluídas e resetar flags de modificação
+      // Resetar flags de modificação
       setCountryLines(prevLines => 
-        prevLines
-          .filter(line => !line.isDeleted) // Remover linhas excluídas
-          .map(line => ({
-            ...line,
-            isModified: false
-          }))
+        prevLines.map(line => ({
+          ...line,
+          isModified: false
+        }))
       );
       
-      // Notificar o componente pai para atualizar os dados
-      if (onSaveComplete) {
-        onSaveComplete();
-      }
-      
-      // Recarregar dados do zero, forçando atualização do Redis
-      const forceRefreshData = async () => {
+      // Recarregar dados preservando o país selecionado
+      const refreshDataForCurrentCountry = async () => {
         try {
           setSuccessMessage("Refreshing data from server...");
           
@@ -337,74 +378,71 @@ export function CountryEditor({
           // Pequeno delay para garantir que o Redis foi atualizado
           await new Promise(resolve => setTimeout(resolve, 500));
           
+          // Notificar o componente pai para atualizar os dados (uma única vez)
+          if (onSaveComplete) {
+            await onSaveComplete();
+          }
+          
           // Agora buscar dados atualizados
           const freshPortfolioData = await PortfolioService.getPortfolioStatusView();
           
-          // Atualizar o componente com os dados novos
-          if (selectedCountry) {
-            // Atualizar o estado do componente pai, se disponível
-            if (onSaveComplete) {
-              await onSaveComplete();
-            }
-            
-            console.log("Reloading with fresh data:", freshPortfolioData.length, "products");
-            
-            // Atualizar localmente também
-            const freshCountryLines = freshPortfolioData
-              .filter(item => 
-                item.countryStatuses.some(cs => cs.countryId === selectedCountry) && 
-                !deletedProductsByCountry[selectedCountry]?.has(item.productId)
-              )
-              .map(item => {
-                const countryStatus = item.countryStatuses.find(cs => cs.countryId === selectedCountry);
-                return {
-                  id: `existing-${item.id}`,
-                  productId: item.productId,
-                  statusId: countryStatus?.statusId || "",
-                  setsQty: countryStatus?.setsQty || "",
-                  isModified: false,
-                  isDeleted: false
-                };
-              });
-            
-            console.log("Found", freshCountryLines.length, "lines for country", selectedCountry);
-            
-            if (freshCountryLines.length === 0) {
-              // Se não há dados, criar linha em branco
-              setCountryLines([{
-                id: `line-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                productId: "",
-                statusId: "",
-                setsQty: "",
-                isModified: true,
-                isDeleted: false
-              }]);
-            } else {
-              // Se há dados, usar eles
-              setCountryLines(freshCountryLines);
-            }
-            
-            setSuccessMessage("Data refreshed successfully");
-            setTimeout(() => setSuccessMessage(""), 3000);
+          console.log("Reloading with fresh data:", freshPortfolioData.length, "products for country", currentSelectedCountry);
+          
+          // Atualizar localmente apenas para o país atual
+          const freshCountryLines = freshPortfolioData
+            .filter(item => 
+              item.countryStatuses.some(cs => cs.countryId === currentSelectedCountry) && 
+              !deletedProductsByCountry[currentSelectedCountry]?.has(item.productId)
+            )
+            .map(item => {
+              const countryStatus = item.countryStatuses.find(cs => cs.countryId === currentSelectedCountry);
+              return {
+                id: `existing-${item.id}`,
+                productId: item.productId,
+                statusId: countryStatus?.statusId || "",
+                setsQty: countryStatus?.setsQty || "",
+                isModified: false
+              };
+            });
+          
+          console.log("Found", freshCountryLines.length, "lines for country", currentSelectedCountry);
+          
+          // Garantir que o país selecionado permanece o mesmo após refresh
+          console.log('Preserving selected country:', currentSelectedCountry);
+          setSelectedCountry(currentSelectedCountry);
+          
+          if (freshCountryLines.length === 0) {
+            // Se não há dados, criar linha em branco
+            setCountryLines([{
+              id: `line-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              productId: "",
+              statusId: "",
+              setsQty: "",
+              isModified: true
+            }]);
+          } else {
+            // Se há dados, usar eles
+            setCountryLines(freshCountryLines);
           }
+          
+          setSuccessMessage("Data refreshed successfully");
+          setTimeout(() => setSuccessMessage(""), 3000);
+          
         } catch (error) {
           console.error('Error refreshing data:', error);
           setSuccessMessage(`Error refreshing data: ${error instanceof Error ? error.message : String(error)}`);
+          setTimeout(() => setSuccessMessage(""), 5000);
         }
       };
       
-      // Executar a atualização forçada
-      forceRefreshData();
+      // Executar a atualização com delay para garantir que o save foi processado
+      setTimeout(refreshDataForCurrentCountry, 1000);
       
     } catch (error) {
       console.error('Error saving changes:', error);
       setSuccessMessage(`Error saving: ${error instanceof Error ? error.message : String(error)}`);
+      setTimeout(() => setSuccessMessage(""), 5000);
     }
-    
-    // Limpar mensagem após 3 segundos
-    setTimeout(() => {
-      setSuccessMessage("");
-    }, 3000);
   }
   
   // Obter produto a partir do ID
@@ -425,9 +463,7 @@ export function CountryEditor({
 
   // Remover linhas vazias antes de exibir - abordagem mais direta
   const displayLines = countryLines
-    // Primeiro remover linhas marcadas como deletadas
-    .filter(line => !line.isDeleted)
-    // Depois, processar o resultado para garantir apenas uma linha vazia
+    // Processar o resultado para garantir apenas uma linha vazia
     .reduce((filtered, line) => {
       // Se a linha tem produto, sempre adicionar
       if (line.productId) {
@@ -566,8 +602,7 @@ export function CountryEditor({
 
           <Button 
             onClick={handleSave}
-            disabled={!countryLines.some(line => line.isModified) && 
-                     !countryLines.some(line => line.isDeleted)}
+            disabled={!countryLines.some(line => line.isModified)}
           >
             <Save className="h-4 w-4 mr-2" />
             Save
@@ -740,7 +775,7 @@ export function CountryEditor({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeLine(line.id)}
+                        onClick={() => prepareRemoveLine(line.id)}
                         className="h-8 w-8 p-0"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -754,19 +789,29 @@ export function CountryEditor({
         </Table>
       </div>
 
-      {/* View Status Button */}
-      <div className="mt-8">
-        <Button
-          variant="outline"
-          onClick={() => {
-            // Redirecionar para a visualização com o país selecionado
-            window.location.href = `/?country=${selectedCountry}`;
-          }}
-        >
-          <Eye className="h-4 w-4 mr-2" />
-          View Status Table
-        </Button>
-      </div>
+      {/* Popup de confirmação para exclusão */}
+      <AlertDialog open={!!productToDelete} onOpenChange={() => setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Product Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the product "{productToDelete?.productName}" from {countryName}? 
+              This action cannot be undone and will permanently remove the product from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => productToDelete && confirmRemoveLine(productToDelete.lineId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Product
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

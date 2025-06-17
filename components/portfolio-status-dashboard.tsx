@@ -10,6 +10,7 @@ import { StatusTable } from "@/components/status-table";
 import { CountryEditor } from "@/components/country-editor";
 import { ProductsEditor } from "@/components/products-editor";
 import {CategoriesProceduresEditor} from "@/components/categories-procedures-editor";
+import { CountriesEditor } from "@/components/countries-editor";
 import { PortfolioService } from "@/services/portfolio-service";
 
 import type {
@@ -267,10 +268,11 @@ export default function PortfolioStatusDashboard() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-4">
+        <TabsList className="mb-6 grid w-full grid-cols-5">
           <TabsTrigger value="view">View Status</TabsTrigger>
           <TabsTrigger value="country-edit">Country Editor</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="countries">Countries</TabsTrigger>
           <TabsTrigger value="categories-procedures">Categories & Procedures</TabsTrigger>
         </TabsList>
 
@@ -313,6 +315,14 @@ export default function PortfolioStatusDashboard() {
                 procedures={procedures}
                 productTypes={productTypes}
               />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="countries">
+          <Card>
+            <CardContent className="p-6">
+              <CountriesEditor />
             </CardContent>
           </Card>
         </TabsContent>
