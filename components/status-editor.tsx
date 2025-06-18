@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-interface CountryEditorProps {
+interface StatusEditorProps {
   portfolioData: PortfolioStatusView[]
   countries: Country[]
   selectedCountryIds?: string[] // Agora é opcional
@@ -42,7 +42,7 @@ type CountryLineItem = {
   isModified: boolean
 }
 
-export function CountryEditor({ 
+export function StatusEditor({ 
   portfolioData, 
   countries, 
   selectedCountryIds = [], // Valor padrão agora é um array vazio
@@ -51,7 +51,7 @@ export function CountryEditor({
   products, 
   productTypes, 
   onSaveComplete 
-}: CountryEditorProps) {
+}: StatusEditorProps) {
   const [countryLines, setCountryLines] = useState<CountryLineItem[]>([])
   const [successMessage, setSuccessMessage] = useState("")
   // Manter um registro permanente de produtos excluídos por país
@@ -547,11 +547,8 @@ export function CountryEditor({
   // Verificar se tem países disponíveis
   if (countries.length === 0) {
     return (
-      <div>
-        <h2 className="mb-6 text-xl font-semibold">Country Status Editor</h2>
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <p className="text-muted-foreground">No countries available for editing</p>
-        </div>
+      <div className="rounded-lg border border-dashed p-8 text-center">
+        <p className="text-muted-foreground">No countries available for editing</p>
       </div>
     );
   }
@@ -561,7 +558,6 @@ export function CountryEditor({
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-semibold">Country Status Editor</h2>
 
       {successMessage && (
         <Card className="mb-6 border-green-500">
@@ -574,7 +570,7 @@ export function CountryEditor({
         </Card>
       )}
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mt-6 mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-medium">Country:</h3>
           <Select value={selectedCountry} onValueChange={handleCountryChange}>
@@ -606,38 +602,6 @@ export function CountryEditor({
           >
             <Save className="h-4 w-4 mr-2" />
             Save
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={async () => {
-              // Reload data with complete rebuild
-              try {
-                setSuccessMessage("Refreshing data from server...");
-                
-                // Forçar a reconstrução completa da view no Redis
-                await PortfolioService.rebuildPortfolioStatusView();
-                
-                // Pequeno delay para garantir atualização do Redis
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Buscar dados frescos
-                await PortfolioService.getPortfolioStatusView();
-                
-                // Recarregar os dados do país
-                if (selectedCountry) {
-                  loadCountryData(selectedCountry);
-                }
-                
-                setSuccessMessage("Data reloaded successfully");
-                setTimeout(() => setSuccessMessage(""), 3000);
-              } catch (error) {
-                console.error('Error reloading data:', error);
-                setSuccessMessage(`Error reloading data: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }}
-          >
-            Reload
           </Button>
         </div>
       </div>

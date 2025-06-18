@@ -390,8 +390,7 @@ export function CountriesEditor() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Countries Editor</h2>
+      <div className="mt-6 mb-6 flex items-center justify-end">
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleAddCountry} disabled={loading}>
             <Plus className="h-4 w-4 mr-2" />
@@ -404,13 +403,6 @@ export function CountriesEditor() {
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete Selected
-          </Button>
-          <Button
-            variant="outline"
-            onClick={loadCountries}
-            disabled={loading}
-          >
-            Reload
           </Button>
           {(countries.some((item) => item.isModified) || countries.some((item) => item.isNew)) && (
             <Button onClick={handleSave} disabled={loading}>

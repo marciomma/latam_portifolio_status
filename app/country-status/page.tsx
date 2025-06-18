@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CountryEditor } from "@/components/country-editor"
+import { StatusEditor } from "@/components/status-editor"
 import { PortfolioService } from "@/services/portfolio-service"
 import { Country, Product, PortfolioStatusView, Procedure, ProductType, Status } from "@/types/database"
 
@@ -98,7 +98,7 @@ export default function CountryStatusPage() {
         <h1 className="text-2xl font-semibold">Editor de Status por País</h1>
       </div>
 
-      <CountryEditor
+      <StatusEditor
         portfolioData={portfolioData}
         countries={countries}
         procedures={procedures}

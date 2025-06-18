@@ -382,8 +382,7 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Products Editor</h2>
+      <div className="mt-6 mb-6 flex items-center justify-end">
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleAddProduct} disabled={loading}>
             <Plus className="h-4 w-4 mr-2" />
@@ -396,13 +395,6 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete Selected
-          </Button>
-          <Button
-            variant="outline"
-            onClick={loadProducts}
-            disabled={loading}
-          >
-            Reload
           </Button>
           {(products.some((item) => item.isModified) || products.some((item) => item.isNew)) && (
             <Button onClick={handleSave} disabled={loading}>

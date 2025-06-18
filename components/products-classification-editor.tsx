@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Check, Plus, Save, Trash2, X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Check, Plus, Save, Trash2, X, ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,7 +29,7 @@ type EditableProcedure = {
   isSelected?: boolean;
 };
 
-export function CategoriesProceduresEditor() {
+export function ProductsClassificationEditor() {
   const [categories, setCategories] = useState<EditableCategory[]>([]);
   const [procedures, setProcedures] = useState<EditableProcedure[]>([]);
   const [selectedProcedures, setSelectedProcedures] = useState<string[]>([]);
@@ -39,6 +39,11 @@ export function CategoriesProceduresEditor() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  // Estado para ordenação
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' | null }>({
+    key: 'category',
+    direction: 'ascending'
+  });
 
   useEffect(() => {
     loadData();
@@ -183,17 +188,7 @@ export function CategoriesProceduresEditor() {
     );
   };
 
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      const filteredProcedureIds = procedures
-        .filter(p => categoryFilter === "all" || p.category === categoryFilter)
-        .map(p => p.id);
-      
-      setSelectedProcedures(filteredProcedureIds);
-    } else {
-      setSelectedProcedures([]);
-    }
-  };
+
 
   const handleAddProcedure = () => {
     const procedureId = `procedure-${Date.now()}`;
@@ -309,19 +304,83 @@ export function CategoriesProceduresEditor() {
     }
   };
 
+  // Função para alternar a ordenação
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' | null = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    } else if (sortConfig.key === key && sortConfig.direction === 'descending') {
+      direction = null;
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Função auxiliar para exibir ícone de ordenação
+  const getSortIcon = (columnName: string) => {
+    if (sortConfig.key !== columnName) {
+      return null;
+    }
+    if (sortConfig.direction === 'ascending') {
+      return <ArrowUp className="h-4 w-4 inline ml-1" />;
+    }
+    return <ArrowDown className="h-4 w-4 inline ml-1" />;
+  };
+
   // Filter procedures based on selected category
   const filteredProcedures = procedures.filter(procedure => 
     categoryFilter === "all" || procedure.category === categoryFilter
   );
 
+  // Aplicar ordenação aos procedimentos filtrados
+  const sortedProcedures = React.useMemo(() => {
+    if (sortConfig.direction === null) {
+      return filteredProcedures;
+    }
+
+    const sortableProcedures = [...filteredProcedures];
+    sortableProcedures.sort((a, b) => {
+      switch(sortConfig.key) {
+        case 'category':
+          return sortConfig.direction === 'ascending' 
+            ? a.category.localeCompare(b.category)
+            : b.category.localeCompare(a.category);
+        
+        case 'name':
+          return sortConfig.direction === 'ascending' 
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        
+        case 'status':
+          const statusA = a.isActive ? 'Active' : 'Inactive';
+          const statusB = b.isActive ? 'Active' : 'Inactive';
+          return sortConfig.direction === 'ascending' 
+            ? statusA.localeCompare(statusB)
+            : statusB.localeCompare(statusA);
+        
+        default:
+          return 0;
+      }
+    });
+    return sortableProcedures;
+  }, [filteredProcedures, sortConfig]);
+
   // Check if all procedures are selected
-  const allSelected = filteredProcedures.length > 0 && 
-                     filteredProcedures.every(procedure => selectedProcedures.includes(procedure.id));
+  const allSelected = sortedProcedures.length > 0 && 
+                     sortedProcedures.every(procedure => selectedProcedures.includes(procedure.id));
+
+  // Função para selecionar/deselecionar todos os procedimentos
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      const sortedProcedureIds = sortedProcedures.map(p => p.id);
+      setSelectedProcedures(sortedProcedureIds);
+    } else {
+      setSelectedProcedures([]);
+    }
+  };
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Categories & Procedures Editor</h2>
+      <div className="mt-6 mb-6 flex items-center justify-end">
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleShowAddCategory} disabled={loading || isAddingCategory}>
             <Plus className="h-4 w-4 mr-2" />
@@ -338,13 +397,6 @@ export function CategoriesProceduresEditor() {
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete Selected
-          </Button>
-          <Button
-            variant="outline"
-            onClick={loadData}
-            disabled={loading}
-          >
-            Reload
           </Button>
         </div>
       </div>
@@ -435,19 +487,34 @@ export function CategoriesProceduresEditor() {
             <TableRow>
               <TableHead className="w-[40px]">
                 <Checkbox 
-                  checked={allSelected && filteredProcedures.length > 0} 
+                  checked={allSelected && sortedProcedures.length > 0} 
                   onCheckedChange={handleSelectAll}
-                  disabled={filteredProcedures.length === 0}
+                  disabled={sortedProcedures.length === 0}
                 />
               </TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="w-[600px]">Procedure Name</TableHead>
-              <TableHead className="w-[200px]">Status</TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('category')}
+              >
+                Category {getSortIcon('category')}
+              </TableHead>
+              <TableHead 
+                className="w-[600px] cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('name')}
+              >
+                Procedure Name {getSortIcon('name')}
+              </TableHead>
+              <TableHead 
+                className="w-[200px] cursor-pointer hover:bg-slate-50" 
+                onClick={() => requestSort('status')}
+              >
+                Status {getSortIcon('status')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProcedures.length > 0 ? (
-              filteredProcedures.map((procedure) => (
+            {sortedProcedures.length > 0 ? (
+              sortedProcedures.map((procedure) => (
                 <TableRow 
                   key={procedure.id}
                   className={procedure.isNew ? "bg-blue-50" : procedure.isModified ? "bg-yellow-50" : ""}

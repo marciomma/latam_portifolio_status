@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Filter, Printer } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Filter, Printer, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusTable } from "@/components/status-table";
-import { CountryEditor } from "@/components/country-editor";
 import { ProductsEditor } from "@/components/products-editor";
-import {CategoriesProceduresEditor} from "@/components/categories-procedures-editor";
+import {ProductsClassificationEditor} from "@/components/products-classification-editor";
 import { CountriesEditor } from "@/components/countries-editor";
 import { PortfolioService } from "@/services/portfolio-service";
+import { StatusEditor } from "@/components/status-editor";
 
 import type {
   Country,
@@ -22,10 +22,62 @@ import type {
   Product
 } from "@/types/database";
 
+// Chave para o sessionStorage
+const APP_STATE_KEY = 'portfolio-dashboard-state';
+
+/**
+ * Sistema de Persistência de Estado
+ * 
+ * Esta implementação mantém o estado da aplicação durante refresh do navegador:
+ * - Aba ativa (view, status-editor, products, categories-procedures, countries)
+ * - Países selecionados nos filtros
+ * - Estado de visibilidade dos filtros
+ * 
+ * Funcionalidades:
+ * - F5/Ctrl+R: Recarrega dados mantendo estado atual
+ * - Botão Refresh: Recarrega dados manualmente
+ * - Estado é limpo automaticamente ao fechar o navegador
+ */
+
+// Interface para o estado persistido
+interface AppState {
+  selectedCountries: string[];
+  showFilters: boolean;
+  activeTab: string;
+}
+
+// Função para salvar estado no sessionStorage
+const saveAppState = (state: AppState) => {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+      return;
+    }
+    sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Erro ao salvar estado da aplicação:', error);
+  }
+};
+
+// Função para carregar estado do sessionStorage
+const loadAppState = (): Partial<AppState> => {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+      return {};
+    }
+    const saved = sessionStorage.getItem(APP_STATE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    console.warn('Erro ao carregar estado da aplicação:', error);
+    return {};
+  }
+};
+
 export default function PortfolioStatusDashboard() {
+  // Estados iniciais - serão restaurados após o mount
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState("view");
+  const [mounted, setMounted] = useState(false);
 
   const [countries, setCountries] = useState<Country[]>([]);
   const [portfolioData, setPortfolioData] = useState<PortfolioStatusView[]>([]);
@@ -65,10 +117,6 @@ export default function PortfolioStatusDashboard() {
       setStatuses(data.statuses || []);
       setProducts(data.products || []);
       
-      if (!selectedCountries.length && data.countries?.length) {
-        setSelectedCountries((data.countries || []).map((c: Country) => c.id));
-      }
-      
       setIsLoading(false);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -76,9 +124,48 @@ export default function PortfolioStatusDashboard() {
     }
   };
 
+  // Restaurar estado salvo na inicialização
   useEffect(() => {
+    const savedState = loadAppState();
+    if (savedState.selectedCountries) {
+      setSelectedCountries(savedState.selectedCountries);
+    }
+    if (savedState.showFilters !== undefined) {
+      setShowFilters(savedState.showFilters);
+    }
+    if (savedState.activeTab) {
+      setActiveTab(savedState.activeTab);
+    }
+    setMounted(true);
     loadData();
   }, [timestamp]);
+
+  // Salvar estado sempre que houver mudanças (apenas após inicialização)
+  useEffect(() => {
+    if (mounted) {
+      const currentState = {
+        selectedCountries,
+        showFilters,
+        activeTab
+      };
+      saveAppState(currentState);
+    }
+  }, [selectedCountries, showFilters, activeTab, mounted]);
+
+  // Listener para teclas F5/Ctrl+R para recarregar dados
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'F5' || (event.ctrlKey && event.key === 'r')) {
+        event.preventDefault();
+        handleRefreshData();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     // Add meta tag for color printing
@@ -124,9 +211,12 @@ export default function PortfolioStatusDashboard() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    if (value === "view") {
-      setTimestamp(Date.now());
-    }
+    // Removido o reload automático - será feito apenas no refresh ou quando necessário
+  };
+
+  // Função para recarregar dados mantendo o estado atual
+  const handleRefreshData = () => {
+    setTimestamp(Date.now());
   };
 
   const toggleCountry = (countryId: string) => {
@@ -137,8 +227,13 @@ export default function PortfolioStatusDashboard() {
     );
   };
 
+  // Garantir que os países estejam sempre em ordem alfabética
+  const sortedCountries = React.useMemo(() => {
+    return [...countries].sort((a, b) => a.name.localeCompare(b.name));
+  }, [countries]);
+
   const selectAllCountries = () => {
-    setSelectedCountries(countries.map((c) => c.id));
+    setSelectedCountries(sortedCountries.map((c) => c.id));
   };
 
   const clearAllCountries = () => {
@@ -167,6 +262,10 @@ export default function PortfolioStatusDashboard() {
                 <span style="font-size: 12px;">${status.name}</span>
               </div>
             `).join('')}
+          <div style="display: flex; align-items: center; margin-right: 15px;">
+            <div style="width: 12px; height: 12px; background-color: #000000; margin-right: 5px;"></div>
+            <span style="font-size: 12px;">Not Available</span>
+          </div>
         </div>
       </div>
     `;
@@ -194,86 +293,128 @@ export default function PortfolioStatusDashboard() {
     window.print();
   };
 
-  if (isLoading) {
+  if (isLoading || !mounted) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
   return (
     <div className="container mx-auto p-4">
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold">Portfolio Status</CardTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrint}
-                className="flex items-center gap-2"
-                disabled={activeTab !== "view"}
-              >
-                <Printer className="h-4 w-4" />
-                Print
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                Filters
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        {showFilters && (
-          <CardContent>
-            <div className="mb-4">
-              <h3 className="mb-2 font-medium">Countries</h3>
-              <div className="flex flex-wrap gap-2">
-                {countries.map((country) => (
-                  <Button
-                    key={country.id}
-                    variant={selectedCountries.includes(country.id) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => toggleCountry(country.id)}
-                  >
-                    {country.name}
-                  </Button>
-                ))}
-                <Button variant="secondary" size="sm" onClick={selectAllCountries}>
-                  Select All
+      {/* Cabeçalho com filtros - apenas para aba View Status */}
+      {activeTab === "view" && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold">
+                Portfolio Status
+                {isLoading && <span className="ml-2 text-sm text-muted-foreground">(Carregando...)</span>}
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshData}
+                  className="flex items-center gap-2"
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
                 </Button>
-                <Button variant="secondary" size="sm" onClick={clearAllCountries}>
-                  Clear All
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrint}
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
                 </Button>
               </div>
             </div>
-            <div>
-              <h3 className="mb-2 font-medium">Status Legend</h3>
-              <div className="flex flex-wrap gap-3">
-                {statuses
-                  .filter((s) => s.code)
-                  .map((status) => (
-                    <div key={status.id} className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded" style={{ backgroundColor: status.color }}></div>
-                      <span className="text-sm">{status.name}</span>
-                    </div>
+          </CardHeader>
+          {showFilters && (
+            <CardContent>
+              <div className="mb-4">
+                <h3 className="mb-2 font-medium">Countries</h3>
+                <div className="flex flex-wrap gap-2">
+                  {sortedCountries.map((country) => (
+                    <Button
+                      key={country.id}
+                      variant={selectedCountries.includes(country.id) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleCountry(country.id)}
+                    >
+                      {country.name}
+                    </Button>
                   ))}
+                  <Button variant="secondary" size="sm" onClick={selectAllCountries}>
+                    Select All
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={clearAllCountries}>
+                    Clear All
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
+              <div>
+                <h3 className="mb-2 font-medium">Status Legend</h3>
+                <div className="flex flex-wrap gap-3">
+                  {statuses
+                    .filter((s) => s.code)
+                    .map((status) => (
+                      <div key={status.id} className="flex items-center gap-2">
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: status.color }}></div>
+                        <span className="text-sm">{status.name}</span>
+                      </div>
+                    ))}
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded" style={{ backgroundColor: '#000000' }}></div>
+                    <span className="text-sm">Not Available</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Título e Botão Refresh para outras abas */}
+      {activeTab !== "view" && (
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-xl font-bold">
+            {activeTab === "country-edit" && "Status Editor"}
+            {activeTab === "products" && "Products Editor"}
+            {activeTab === "categories-procedures" && "Products Classification Editor"}
+            {activeTab === "countries" && "Countries Editor"}
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshData}
+            className="flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+            {isLoading && <span className="ml-2 text-sm text-muted-foreground">(Carregando...)</span>}
+          </Button>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6 grid w-full grid-cols-5">
           <TabsTrigger value="view">View Status</TabsTrigger>
-          <TabsTrigger value="country-edit">Country Editor</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="countries">Countries</TabsTrigger>
-          <TabsTrigger value="categories-procedures">Categories & Procedures</TabsTrigger>
+          <TabsTrigger value="country-edit">Status Editor</TabsTrigger>
+          <TabsTrigger value="products">Products Editor</TabsTrigger>
+          <TabsTrigger value="categories-procedures">Products Classification Editor</TabsTrigger>
+          <TabsTrigger value="countries">Countries Editor</TabsTrigger>
         </TabsList>
 
         <TabsContent value="view">
@@ -282,7 +423,7 @@ export default function PortfolioStatusDashboard() {
               <div ref={statusTableRef}>
                 <StatusTable
                   portfolioData={portfolioData}
-                  countries={countries}
+                  countries={sortedCountries}
                   selectedCountryIds={selectedCountries}
                   procedures={procedures}
                   productTypes={productTypes}
@@ -295,9 +436,9 @@ export default function PortfolioStatusDashboard() {
         <TabsContent value="country-edit">
           <Card>
             <CardContent className="p-6">
-              <CountryEditor
+              <StatusEditor
                 portfolioData={portfolioData}
-                countries={countries}
+                countries={sortedCountries}
                 procedures={procedures}
                 statuses={statuses}
                 products={products}
@@ -319,18 +460,18 @@ export default function PortfolioStatusDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="countries">
+        <TabsContent value="categories-procedures">
           <Card>
             <CardContent className="p-6">
-              <CountriesEditor />
+              <ProductsClassificationEditor />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="categories-procedures">
+        <TabsContent value="countries">
           <Card>
             <CardContent className="p-6">
-              <CategoriesProceduresEditor />
+              <CountriesEditor />
             </CardContent>
           </Card>
         </TabsContent>

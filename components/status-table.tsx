@@ -63,6 +63,38 @@ export function StatusTable({
 
   // Filter countries based on selection
   const filteredCountries = countries.filter((country) => selectedCountryIds.includes(country.id))
+  
+  // Function to determine if background color is dark and text should be white
+  const isDarkColor = (color: string | undefined) => {
+    if (!color) return false;
+    
+    // Check for "None" status specifically (common dark colors)
+    const darkColors = ['#000000', '#000', 'black', '#333333', '#333'];
+    if (darkColors.includes(color.toLowerCase())) {
+      return true;
+    }
+    
+    // Convert hex to RGB and calculate luminance
+    const hex = color.replace('#', '');
+    if (hex.length === 3) {
+      // Convert 3-digit hex to 6-digit
+      const r = parseInt(hex[0] + hex[0], 16);
+      const g = parseInt(hex[1] + hex[1], 16);
+      const b = parseInt(hex[2] + hex[2], 16);
+      // Calculate relative luminance
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance < 0.5;
+    } else if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      // Calculate relative luminance
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance < 0.5;
+    }
+    
+    return false;
+  }
 
   return (
     <div>
@@ -308,11 +340,15 @@ export function StatusTable({
                                     <div className="flex flex-col gap-1 items-center">
                                       {tier1ProductsForCountry.map((product) => {
                                         const status = getStatus(product, 'Tier 1');
+                                        const textColor = isDarkColor(status?.statusColor) ? 'white' : 'inherit';
                                         return (
                                           <div
                                             key={product.productId}
                                             className="text-xs rounded p-1 w-full max-w-[120px]"
-                                            style={{ backgroundColor: status?.statusColor || undefined }}
+                                            style={{ 
+                                              backgroundColor: status?.statusColor || undefined,
+                                              color: textColor
+                                            }}
                                           >
                                             <div className="font-[550]">{product.product}</div>
                                             <div className="italic">({product.productLifeCycle})</div>
@@ -341,11 +377,15 @@ export function StatusTable({
                                     <div className="flex flex-col gap-1 items-center">
                                       {tier2ProductsForCountry.map((product) => {
                                         const status = getStatus(product, 'Tier 2');
+                                        const textColor = isDarkColor(status?.statusColor) ? 'white' : 'inherit';
                                         return (
                                           <div
                                             key={product.productId}
                                             className="text-xs rounded p-1 w-full max-w-[120px]"
-                                            style={{ backgroundColor: status?.statusColor || undefined }}
+                                            style={{ 
+                                              backgroundColor: status?.statusColor || undefined,
+                                              color: textColor
+                                            }}
                                           >
                                             <div className="font-[550]">{product.product}</div>
                                             <div className="italic">({product.productLifeCycle})</div>
