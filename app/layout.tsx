@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
+import { DevIndicator } from "@/components/dev-indicator";
 
 export const metadata: Metadata = {
   title: "LATAM Portfolio Status",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased">
         <SiteHeader />
         <main>{children}</main>
+        <DevIndicator />
       </body>
     </html>
   );
