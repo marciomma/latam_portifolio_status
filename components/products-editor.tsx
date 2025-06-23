@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react"
 import { Check, Plus, Save, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 
@@ -41,15 +43,22 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
     (proc) => categoryFilter === "all" || proc.category === categoryFilter
   )
 
-  // Função para carregar produtos
+  // Função para carregar produtos - FIXED to use API route
   const loadProducts = async () => {
     try {
       setLoading(true);
       console.log("Loading products...");
-      const productsData = await PortfolioService.getProducts();
+      
+      // Fetch from API route instead of directly accessing Redis
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error(`Failed to load products: ${response.status}`);
+      }
+      
+      const productsData = await response.json();
       console.log(`Loaded ${productsData.length} products`);
       
-      const items: EditableProduct[] = productsData.map((product) => ({
+      const items: EditableProduct[] = productsData.map((product: Product) => ({
         ...product,
         isModified: false,
         isSelected: false,
@@ -303,7 +312,7 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
     } else if (sortConfig.key === key && sortConfig.direction === 'descending') {
-      direction = null;
+      direction = 'ascending';
     }
     setSortConfig({ key, direction });
   };

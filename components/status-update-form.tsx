@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PortfolioService } from "@/services/portfolio-service"
+import { useUpdateStatus } from "@/hooks/usePortfolioData"
 import type { Country, PortfolioStatusView, Procedure, Status } from "@/types/database"
 
 interface StatusUpdateFormProps {
@@ -14,6 +15,7 @@ interface StatusUpdateFormProps {
   countries: Country[]
   procedures: Procedure[]
   statuses: Status[]
+  onDataUpdate?: () => void // Callback to refresh parent data
 }
 
 type EditableItem = PortfolioStatusView & {
@@ -21,7 +23,7 @@ type EditableItem = PortfolioStatusView & {
   modifiedStatuses?: Record<string, string>
 }
 
-export function StatusUpdateForm({ portfolioData, countries, procedures, statuses }: StatusUpdateFormProps) {
+export function StatusUpdateForm({ portfolioData, countries, procedures, statuses, onDataUpdate }: StatusUpdateFormProps) {
   const [countryFilter, setCountryFilter] = useState<string>("all")
   const [procedureFilter, setProcedureFilter] = useState<string>("all")
   const [productTypeFilter, setProductTypeFilter] = useState<string>("all")
@@ -29,6 +31,9 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
   const [editableData, setEditableData] = useState<EditableItem[]>([])
   const [successMessage, setSuccessMessage] = useState("")
   const [showFilters, setShowFilters] = useState(true)
+  
+  // Use our custom hook for updates
+  const { updateStatus, isUpdating } = useUpdateStatus()
 
   // Initialize editable data
   useEffect(() => {
@@ -155,23 +160,11 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
     // Save updates
     if (updates.length > 0) {
       try {
-        // Usar a nova API para persistir as alterações
-        const response = await fetch('/api/update-status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updates),
-        });
+        // Use our custom hook for updating
+        const result = await updateStatus(updates);
+        console.log('Update result:', result);
 
-        if (!response.ok) {
-          throw new Error(`Erro ao salvar: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log('Resultado da atualização:', result);
-
-        // Mostrar mensagem de sucesso
+        // Show success message
         setSuccessMessage(`Status atualizado com sucesso para ${updates.length} itens`);
 
         // Reset modified flags
@@ -183,20 +176,33 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
           }))
         );
 
-        // Recarregar a página após 1 segundo para mostrar os dados atualizados
+        // Clear success message after 3 seconds
         setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+          setSuccessMessage("")
+        }, 3000)
+
+        // Notify parent to refresh data if callback provided
+        if (onDataUpdate) {
+          // Give some time for the backend to process
+          setTimeout(() => {
+            onDataUpdate()
+          }, 1000)
+        }
       } catch (error) {
         console.error('Erro ao salvar alterações:', error);
         setSuccessMessage(`Erro ao salvar: ${error instanceof Error ? error.message : String(error)}`);
+        
+        // Clear error message after 5 seconds
+        setTimeout(() => {
+          setSuccessMessage("")
+        }, 5000)
       }
+    } else {
+      setSuccessMessage("Nenhuma alteração para salvar")
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 3000)
     }
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
   }
 
   const getStatusColor = (status: Status, isModified = false) => {
@@ -229,10 +235,10 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
       </div>
 
       {successMessage && (
-        <Card className="mb-6 border-green-500">
+        <Card className={`mb-6 ${successMessage.includes('Erro') ? 'border-red-500' : 'border-green-500'}`}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-green-600">
-              <Check className="h-5 w-5" />
+            <div className={`flex items-center gap-2 ${successMessage.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+              {successMessage.includes('Erro') ? <X className="h-5 w-5" /> : <Check className="h-5 w-5" />}
               <p>{successMessage}</p>
             </div>
           </CardContent>
@@ -471,9 +477,22 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
         </Table>
       </div>
 
-      <Button onClick={handleSave} className="w-full" disabled={!editableData.some((item) => item.isModified)}>
-        <Save className="mr-2 h-4 w-4" />
-        Salvar Alterações
+      <Button 
+        onClick={handleSave} 
+        className="w-full" 
+        disabled={!editableData.some((item) => item.isModified) || isUpdating}
+      >
+        {isUpdating ? (
+          <>
+            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+            Salvando...
+          </>
+        ) : (
+          <>
+            <Save className="mr-2 h-4 w-4" />
+            Salvar Alterações
+          </>
+        )}
       </Button>
     </div>
   )

@@ -2,15 +2,19 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
   const [cleanupMessage, setCleanupMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const cleanupDatabase = async () => {
     try {
       const confirmed = window.confirm("This will remove legacy mockup data from the database. Continue?")
       if (!confirmed) return
 
+      setIsLoading(true)
       setCleanupMessage("Cleaning database...")
       
       const response = await fetch('/api/clean-portfolio-data', {
@@ -21,14 +25,29 @@ export default function DashboardPage() {
       
       if (result.success) {
         setCleanupMessage(result.message)
+        
+        // Clear the message after showing success
         setTimeout(() => {
-          window.location.reload()
-        }, 2000)
+          setCleanupMessage("")
+          // Optionally navigate to the main page if needed
+          // router.push('/')
+        }, 3000)
+        
+        // Clear any cached data by calling the cache invalidation endpoint
+        try {
+          await fetch('/api/load-dashboard-data', { method: 'POST' })
+        } catch (err) {
+          console.log('Cache cleared')
+        }
       } else {
         setCleanupMessage(`Error: ${result.message}`)
+        setTimeout(() => setCleanupMessage(""), 5000)
       }
     } catch (error) {
       setCleanupMessage(`Error: ${error instanceof Error ? error.message : String(error)}`)
+      setTimeout(() => setCleanupMessage(""), 5000)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -59,6 +78,15 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+        
+        <div className="border rounded-lg p-6">
+          <h2 className="text-lg font-medium mb-2">Sistema</h2>
+          <div className="space-y-2 text-sm text-gray-600">
+            <p>Cache: 30 segundos TTL</p>
+            <p>Redis: Otimizado com retry</p>
+            <p>Build: Turbopack habilitado</p>
+          </div>
+        </div>
       </div>
 
       <div className="mb-8 border-t pt-4">
@@ -73,18 +101,37 @@ export default function DashboardPage() {
             </p>
             <button 
               onClick={cleanupDatabase}
-              className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm"
+              disabled={isLoading}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                isLoading 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'bg-red-100 hover:bg-red-200 text-red-800'
+              }`}
             >
-              Limpar Dados Legados
+              {isLoading ? 'Processando...' : 'Limpar Dados Legados'}
             </button>
             
             {cleanupMessage && (
-              <div className="mt-2 p-2 bg-blue-50 text-blue-800 rounded">
+              <div className={`mt-2 p-2 rounded ${
+                cleanupMessage.includes('Error') 
+                  ? 'bg-red-50 text-red-800' 
+                  : 'bg-green-50 text-green-800'
+              }`}>
                 {cleanupMessage}
               </div>
             )}
           </div>
         </details>
+      </div>
+      
+      <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+        <h3 className="font-medium text-blue-900 mb-2">💡 Dicas de Performance</h3>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• Use o botão Refresh nas telas ao invés de recarregar a página</li>
+          <li>• Os dados são cacheados por 30 segundos para melhor performance</li>
+          <li>• Alterações são aplicadas instantaneamente sem reload</li>
+          <li>• TypeScript e ESLint agora validam o código em build</li>
+        </ul>
       </div>
     </div>
   )

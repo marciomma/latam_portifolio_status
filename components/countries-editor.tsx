@@ -29,15 +29,22 @@ export function CountriesEditor() {
     direction: 'ascending'
   });
 
-  // Função para carregar países
+  // Função para carregar países - FIXED to use API route
   const loadCountries = async () => {
     try {
       setLoading(true);
       console.log("Loading countries...");
-      const countriesData = await PortfolioService.getCountries();
+      
+      // Fetch from API route instead of directly accessing Redis
+      const response = await fetch('/api/countries');
+      if (!response.ok) {
+        throw new Error(`Failed to load countries: ${response.status}`);
+      }
+      
+      const countriesData = await response.json();
       console.log(`Loaded ${countriesData.length} countries`);
       
-      const items: EditableCountry[] = countriesData.map((country) => ({
+      const items: EditableCountry[] = countriesData.map((country: Country) => ({
         ...country,
         isModified: false,
         isSelected: false,

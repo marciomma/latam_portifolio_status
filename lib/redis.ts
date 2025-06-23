@@ -14,10 +14,8 @@ export const resetRedisClient = () => {
   console.log('Instância do cliente Redis resetada');
 }
 
-// Expor para testes
-export const getRedisClientForTest = () => {
-  return getRedisClient();
-};
+// Função helper para sleep
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Criar função de acesso ao Redis ao invés de instância global
 // Isso evita problemas de inicialização durante build
@@ -27,11 +25,7 @@ export function getRedisClient() {
     return redisClientInstance;
   }
 
-  // Valores fixos para ambiente de desenvolvimento
-  const defaultUrl = "https://united-mammal-20071.upstash.io";
-  const defaultToken = "AU5nAAIjcDFmM2ZiZjU3NjMxZDQ0YWY1OTIyMmZlMzgxMDgzMTkzYXAxMA";
-  
-  // Tentar obter das variáveis de ambiente primeiro
+  // Obter das variáveis de ambiente
   let url = process.env.UPSTASH_REDIS_REST_URL || '';
   let token = process.env.UPSTASH_REDIS_REST_TOKEN || '';
   
@@ -39,15 +33,21 @@ export function getRedisClient() {
   url = url.replace(/^["'](.*)["']$/, '$1');
   token = token.replace(/^["'](.*)["']$/, '$1');
 
-  // Usar valores padrão se não estiverem definidos
+  // Validar se as variáveis estão definidas
   if (!url || url.length < 5) {
-    console.log('Usando URL padrão do Redis para ambiente de desenvolvimento');
-    url = defaultUrl;
+    console.error('[Redis] UPSTASH_REDIS_REST_URL não está configurada');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Redis] Por favor, configure as variáveis de ambiente no arquivo .env.local');
+    }
+    return null;
   }
   
   if (!token || token.length < 5) {
-    console.log('Usando token padrão do Redis para ambiente de desenvolvimento');
-    token = defaultToken;
+    console.error('[Redis] UPSTASH_REDIS_REST_TOKEN não está configurada');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Redis] Por favor, configure as variáveis de ambiente no arquivo .env.local');
+    }
+    return null;
   }
 
   try {
@@ -69,8 +69,19 @@ export function getRedisClient() {
   }
 }
 
-// Função de sleep para retry
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+// Exportar função de teste de conexão
+export const testRedisConnection = async () => {
+  const client = getRedisClient();
+  if (!client) return false;
+  
+  try {
+    await client.ping();
+    return true;
+  } catch (error) {
+    console.error('[Redis] Falha no teste de conexão:', error);
+    return false;
+  }
+};
 
 // Wrapper para métodos Redis com verificação de client e retry
 export const redis = {
@@ -196,5 +207,20 @@ export const redis = {
     
     console.error(`[Redis] Falha em todas as ${MAX_RETRIES} tentativas de DEL ${key}:`, lastError)
     return null
+  },
+  
+  async ping() {
+    const client = getRedisClient()
+    if (!client) {
+      console.error(`[Redis] Cliente não inicializado ao tentar PING`)
+      return null
+    }
+    
+    try {
+      return await client.ping()
+    } catch (error) {
+      console.error(`[Redis] Erro PING:`, error)
+      return null
+    }
   }
 }

@@ -52,25 +52,32 @@ export function ProductsClassificationEditor() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const proceduresData = await PortfolioService.getProcedures();
+      
+      // Fetch from API route instead of directly accessing Redis
+      const response = await fetch('/api/procedures');
+      if (!response.ok) {
+        throw new Error(`Failed to load procedures: ${response.status}`);
+      }
+      
+      const proceduresData = await response.json();
       
       // Extract unique categories from procedures
-      const uniqueCategories = Array.from(new Set(proceduresData.map((proc) => proc.category)));
+      const uniqueCategories = Array.from(new Set(proceduresData.map((proc: any) => proc.category)));
 
       const categoriesData: EditableCategory[] = uniqueCategories.map((category) => {
         // Generate a stable ID based on the category name
-        const categoryId = `category-${category.toLowerCase().replace(/\s+/g, '-')}`;
+        const categoryId = `category-${(category as string).toLowerCase().replace(/\s+/g, '-')}`;
         
         return {
           id: categoryId,
-          name: category,
+          name: category as string,
           isActive: true,
           isModified: false,
           isSelected: false,
         }
       });
 
-      const proceduresData2: EditableProcedure[] = proceduresData.map((procedure) => ({
+      const proceduresData2: EditableProcedure[] = proceduresData.map((procedure: any) => ({
         id: procedure.id,
         name: procedure.name,
         category: procedure.category,
@@ -83,7 +90,7 @@ export function ProductsClassificationEditor() {
       setProcedures(proceduresData2);
       setErrorMessage("");
     } catch (error) {
-      console.error("Error loading procedures from Redis:", error);
+      console.error("Error loading procedures:", error);
       setErrorMessage(`Error loading data: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);

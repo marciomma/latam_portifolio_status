@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PortfolioService } from "@/services/portfolio-service"
+import { useUpdateStatus } from "@/hooks/usePortfolioData"
 import type { Country, Product, Status } from "@/types/database"
 
 interface PortfolioEditorProps {
   countries: Country[]
   products: Product[]
   statuses: Status[]
+  onDataUpdate?: () => void // Callback to refresh parent data
 }
 
 type EditablePortfolioItem = {
@@ -29,12 +31,15 @@ type EditablePortfolioItem = {
   isSelected?: boolean
 }
 
-export function PortfolioEditor({ countries, products, statuses }: PortfolioEditorProps) {
+export function PortfolioEditor({ countries, products, statuses, onDataUpdate }: PortfolioEditorProps) {
   const [portfolioItems, setPortfolioItems] = useState<EditablePortfolioItem[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newItem, setNewItem] = useState({ productId: "", countryId: "", statusId: "" })
   const [successMessage, setSuccessMessage] = useState("")
   const [selectAll, setSelectAll] = useState(false)
+  
+  // Use our custom hook for updates
+  const { updateStatus, isUpdating } = useUpdateStatus()
 
   useEffect(() => {
     const loadData = async () => {
@@ -131,30 +136,18 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
     if (modifiedItems.length === 0) return
 
     try {
-      // Preparar atualizações no formato esperado pela API
+      // Prepare updates in the expected API format
       const updates = modifiedItems.map(item => ({
         productId: item.productId,
         countryId: item.countryId,
         statusId: item.statusId
       }));
       
-      // Usar a nova API para persistir as alterações
-      const response = await fetch('/api/update-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao salvar: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('Resultado da atualização:', result);
+      // Use our custom hook for updating
+      const result = await updateStatus(updates);
+      console.log('Update result:', result);
       
-      // Marcar todos os itens como não modificados
+      // Mark all items as unmodified
       setPortfolioItems((prev) =>
         prev.map((item) => ({
           ...item,
@@ -163,19 +156,39 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
         }))
       )
 
-      // Exibir mensagem de sucesso
+      // Show success message
       setSuccessMessage(`${modifiedItems.length} registro(s) salvo(s) com sucesso`)
       
-      // Recarregar a página após 2 segundos para mostrar os dados atualizados
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Clear message after 3 seconds
+      setTimeout(() => setSuccessMessage(""), 3000)
+      
+      // Notify parent to refresh data if callback provided
+      if (onDataUpdate) {
+        onDataUpdate()
+      }
+      
+      // Refresh local data
+      const statusPortfolios = await PortfolioService.getStatusPortfolios()
+      const items: EditablePortfolioItem[] = statusPortfolios.map((sp) => {
+        const product = products.find((p) => p.id === sp.productId)
+        return {
+          id: sp.id,
+          productId: sp.productId,
+          productName: product?.name || "Produto Desconhecido",
+          countryId: sp.countryId,
+          statusId: sp.statusId,
+          isModified: false,
+          isSelected: false,
+        }
+      })
+      setPortfolioItems(items)
+      
     } catch (error) {
       console.error('Erro ao salvar alterações:', error);
       setSuccessMessage(`Erro ao salvar: ${error instanceof Error ? error.message : String(error)}`);
       
-      // Limpar mensagem de erro após 3 segundos
-      setTimeout(() => setSuccessMessage(""), 3000)
+      // Clear error message after 5 seconds
+      setTimeout(() => setSuccessMessage(""), 5000)
     }
   }
 
@@ -275,9 +288,22 @@ export function PortfolioEditor({ countries, products, statuses }: PortfolioEdit
       </div>
 
       {portfolioItems.some((item) => item.isModified) && (
-        <Button onClick={handleSave} className="w-full">
-          <Save className="mr-2 h-4 w-4" />
-          Salvar Alterações
+        <Button 
+          onClick={handleSave} 
+          className="w-full"
+          disabled={isUpdating}
+        >
+          {isUpdating ? (
+            <>
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+              Salvando...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Salvar Alterações
+            </>
+          )}
         </Button>
       )}
 
