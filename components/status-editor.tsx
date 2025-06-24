@@ -690,22 +690,37 @@ export function StatusEditor({
                         <SelectTrigger>
                           <SelectValue placeholder="Select a status" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {line.statusId === "" && <SelectItem value="none">Select...</SelectItem>}
-                          {statuses
-                            .slice()
-                            .sort((a, b) => a.id.localeCompare(b.id))
-                            .map(status => (
-                              <SelectItem key={status.id} value={status.id}>
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="h-3 w-3 rounded-full" 
-                                    style={{ backgroundColor: status.color }}
-                                  ></div>
-                                  {status.name}
-                                </div>
-                              </SelectItem>
-                            ))}
+                                            <SelectContent>
+                      {line.statusId === "" && <SelectItem value="none">Select...</SelectItem>}
+                      {statuses
+                        .slice()
+                        .sort((a, b) => {
+                          // Custom order: Available, Ready to be Ordered, RA Submitted, RA to be Submitted, Not Planned, Not Available
+                          const order: Record<string, number> = {
+                            'Available': 1,
+                            'Ready to be Ordered': 2,
+                            'RA Submitted': 3,
+                            'RA to be Submitted': 4,
+                            'Not Planned': 5,
+                            'Not Available': 6
+                          };
+                          
+                          const orderA = order[a.id] || 999;
+                          const orderB = order[b.id] || 999;
+                          
+                          return orderA - orderB;
+                        })
+                        .map(status => (
+                          <SelectItem key={status.id} value={status.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="h-3 w-3 rounded-full" 
+                                style={{ backgroundColor: status.color }}
+                              ></div>
+                              {status.name}
+                            </div>
+                          </SelectItem>
+                        ))}
                         </SelectContent>
                       </Select>
                     </TableCell>

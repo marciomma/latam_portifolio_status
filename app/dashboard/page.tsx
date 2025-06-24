@@ -91,6 +91,7 @@ export default function DashboardPage() {
 
       <div className="mb-8 border-t pt-4">
         <h2 className="text-lg font-medium mb-3">Administração do Banco de Dados</h2>
+        
         <details className="text-sm border rounded-lg p-4">
           <summary className="cursor-pointer text-red-600 font-medium">Limpeza de Dados Legados (Cuidado!)</summary>
           <div className="mt-2 p-4 bg-gray-50 rounded-lg">

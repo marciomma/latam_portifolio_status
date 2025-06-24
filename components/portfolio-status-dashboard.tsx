@@ -255,7 +255,23 @@ export default function PortfolioStatusDashboard() {
         <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">Status Legend:</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 10px;">
           ${statuses
-            .filter(s => s.code)
+            .filter(s => s.code && s.name !== 'Not Available') // Filter out "Not Available" from database
+            .sort((a, b) => {
+                                        // Custom order: Available, Ready to be Ordered, RA Submitted, RA to be Submitted, Not Planned, Not Available
+                          const order: Record<string, number> = {
+                            'Available': 1,
+                            'Ready to be Ordered': 2,
+                            'RA Submitted': 3,
+                            'RA to be Submitted': 4,
+                            'Not Planned': 5,
+                            'Not Available': 6
+                          };
+              
+              const orderA = order[a.id] || 999;
+              const orderB = order[b.id] || 999;
+              
+              return orderA - orderB;
+            })
             .map(status => `
               <div style="display: flex; align-items: center; margin-right: 15px;">
                 <div style="width: 12px; height: 12px; background-color: ${status.color}; margin-right: 5px;"></div>
@@ -367,7 +383,23 @@ export default function PortfolioStatusDashboard() {
                 <h3 className="mb-2 font-medium">Status Legend</h3>
                 <div className="flex flex-wrap gap-3">
                   {statuses
-                    .filter((s) => s.code)
+                    .filter((s) => s.code && s.name !== 'Not Available') // Filter out "Not Available" from database
+                    .sort((a, b) => {
+                      // Custom order: Available, Ready to be Ordered, RA Submitted, RA to be Submitted, Not Planned, Not Available
+                      const order: Record<string, number> = {
+                        'Available': 1,
+                        'Ready to be Ordered': 2,
+                        'RA Submitted': 3,
+                        'RA to be Submitted': 4,
+                        'Not Planned': 5,
+                        'Not Available': 6
+                      };
+                      
+                      const orderA = order[a.name] || 999;
+                      const orderB = order[b.name] || 999;
+                      
+                      return orderA - orderB;
+                    })
                     .map((status) => (
                       <div key={status.id} className="flex items-center gap-2">
                         <div className="h-4 w-4 rounded" style={{ backgroundColor: status.color }}></div>

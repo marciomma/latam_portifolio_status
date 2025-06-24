@@ -34,7 +34,38 @@ export class PortfolioService {
   }
 
   static async getStatuses(): Promise<Status[]> {
-    return await getFromRedis<Status>('statuses')
+    const statuses = await getFromRedis<Status>('statuses');
+    
+    // Ensure "Ready to be Ordered" status exists
+    const readyToOrderStatus = statuses.find(
+      status => status.name === "Ready to be Ordered" || status.code === "AVAILABLE_TO_ORDER"
+    );
+    
+    if (!readyToOrderStatus) {
+      // Add the new status automatically
+      const newStatus: Status = {
+        id: `status-available-to-order-${Date.now()}`,
+        code: "AVAILABLE_TO_ORDER",
+        name: "Ready to be Ordered",
+        color: "#FFA500", // Orange color
+        description: "Product is ready to be ordered",
+        isActive: true
+      };
+      
+      const updatedStatuses = [...statuses, newStatus];
+      
+      // Save back to Redis
+      try {
+        await setToRedis('statuses', updatedStatuses);
+        console.log('✅ Added "Ready to be Ordered" status automatically');
+        return updatedStatuses;
+      } catch (error) {
+        console.error('Failed to add "Ready to be Ordered" status:', error);
+        return statuses;
+      }
+    }
+    
+    return statuses;
   }
 
   static async getStatusPortfolios(): Promise<StatusPortfolio[]> {
