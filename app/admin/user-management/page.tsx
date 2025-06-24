@@ -38,6 +38,9 @@ import {
 const userSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, 
+      "Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character (@$!%*?&)"),
   role: z.enum(['user', 'admin']),
   status: z.enum(['pending', 'approved']),
 });
@@ -81,6 +84,7 @@ export default function AdminUserManagementPage() {
   const [userToResetPassword, setUserToResetPassword] = useState<UserData | null>(null);
   const [resetPasswordResult, setResetPasswordResult] = useState<{ password: string; showPassword: boolean } | null>(null);
   const [stats, setStats] = useState({ totalUsers: 0, pendingCount: 0, approvedCount: 0 });
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   // Create user form
   const createForm = useForm<UserFormData>({
@@ -88,6 +92,7 @@ export default function AdminUserManagementPage() {
     defaultValues: {
       name: "",
       email: "",
+      password: "",
       role: "user",
       status: "approved",
     },
@@ -181,6 +186,7 @@ export default function AdminUserManagementPage() {
         setMessage({ type: 'success', text: result.message });
         setIsCreateDialogOpen(false);
         createForm.reset();
+        setShowCreatePassword(false);
         await fetchUsers();
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to create user' });
@@ -404,7 +410,12 @@ export default function AdminUserManagementPage() {
           <Shield className="h-6 w-6 text-blue-600" />
           <h1 className="text-2xl font-bold">Admin User Management</h1>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+          setIsCreateDialogOpen(open);
+          if (!open) {
+            setShowCreatePassword(false);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -415,7 +426,7 @@ export default function AdminUserManagementPage() {
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
               <DialogDescription>
-                Add a new user to the system. You can set their role and approval status.
+                Add a new user to the system. You can set their role, approval status, and initial password.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={createForm.handleSubmit(handleCreateUser)} className="space-y-4">
@@ -456,6 +467,42 @@ export default function AdminUserManagementPage() {
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="create-password">Initial Password</Label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="create-password"
+                    type={showCreatePassword ? "text" : "password"}
+                    placeholder="Enter initial password"
+                    className="pl-10 pr-10"
+                    {...createForm.register('password')}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowCreatePassword(!showCreatePassword)}
+                  >
+                    {showCreatePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {createForm.formState.errors.password && (
+                  <p className="text-sm text-red-600">
+                    {createForm.formState.errors.password.message}
+                  </p>
+                )}
+                <div className="text-xs text-gray-600 space-y-1">
+                  <p className="font-medium">Password requirements:</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-xs">
+                    <li>At least 8 characters long</li>
+                    <li>One lowercase letter (a-z)</li>
+                    <li>One uppercase letter (A-Z)</li>
+                    <li>One number (0-9)</li>
+                    <li>One special character (@$!%*?&)</li>
+                  </ul>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Role</Label>
@@ -494,7 +541,10 @@ export default function AdminUserManagementPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
+                  onClick={() => {
+                    setIsCreateDialogOpen(false);
+                    setShowCreatePassword(false);
+                  }}
                 >
                   Cancel
                 </Button>

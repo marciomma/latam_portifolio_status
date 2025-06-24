@@ -161,36 +161,15 @@ export function SiteHeader() {
         </div>
         
         <nav className="flex items-center gap-6">
-          {!isProduction && (
+          {/* Admin-only links - consistent across dev and production */}
+          {user?.role === 'admin' && (
             <>
               <Link
-                href="/country-status"
+                href="/admin/user-management"
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
               >
-                Editor de País
+                Admin
               </Link>
-              <Link
-                href="/dashboard"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-              >
-                Dashboard
-              </Link>
-              {user?.role === 'admin' && (
-                <>
-                  <Link
-                    href="/admin/users"
-                    className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    User Manager
-                  </Link>
-                  <Link
-                    href="/admin/user-management"
-                    className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    Admin
-                  </Link>
-                </>
-              )}
             </>
           )}
           
