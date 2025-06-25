@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { getFromRedis, setToRedis } from "@/lib/data";
+import { setToRedis } from "@/lib/data";
 import { PortfolioService } from "@/services/portfolio-service";
-import type { Country } from "@/types/database";
 
 // GET - Obter todos os países
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const countries = await PortfolioService.getCountries();
     console.log(`[API] GET /api/countries - Retornando ${countries.length} países`);

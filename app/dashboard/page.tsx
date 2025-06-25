@@ -2,12 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
   const [cleanupMessage, setCleanupMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
 
   const cleanupDatabase = async () => {
     try {
@@ -36,7 +34,7 @@ export default function DashboardPage() {
         // Clear any cached data by calling the cache invalidation endpoint
         try {
           await fetch('/api/load-dashboard-data', { method: 'POST' })
-        } catch (err) {
+        } catch {
           console.log('Cache cleared')
         }
       } else {

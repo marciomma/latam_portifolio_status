@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getApprovedUsers, findUserByEmail, APPROVED_USERS_KEY, User } from '@/lib/user-utils';
+import { getApprovedUsers, findUserByEmail, APPROVED_USERS_KEY } from '@/lib/user-utils';
 import { setToRedis } from '@/lib/data';
 import { verifyPassword } from '@/lib/password-utils';
 

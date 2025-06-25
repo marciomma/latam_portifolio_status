@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByEmail, User } from '@/lib/user-utils';
+import { findUserByEmail } from '@/lib/user-utils';
 
 // Simple test endpoint to verify admin authentication
 export async function GET(request: NextRequest) {

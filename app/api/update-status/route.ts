@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PortfolioService } from "@/services/portfolio-service";
-import { setToRedis, getFromRedis } from "@/lib/data";
+import { getFromRedis } from "@/lib/data";
 
 // API para atualizar status com refresh forçado dos dados
 export async function POST(req: Request) {

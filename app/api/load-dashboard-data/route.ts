@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import { PortfolioService } from "@/services/portfolio-service";
 
 // Simple in-memory cache with TTL
-const cache = new Map<string, { data: any; timestamp: number }>();
+interface CacheEntry {
+  data: unknown;
+  timestamp: number;
+}
+
+const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Check if we have cached data
     const cacheKey = 'dashboard-data';

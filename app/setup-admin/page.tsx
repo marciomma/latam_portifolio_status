@@ -61,7 +61,7 @@ export default function SetupAdminPage() {
           text: result.message || 'Failed to create admin user.',
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: 'error',
         text: 'Network error. Please check your connection and try again.',

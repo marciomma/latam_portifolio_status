@@ -4,7 +4,7 @@ import { setToRedis } from "@/lib/data";
 import { PortfolioService } from "@/services/portfolio-service";
 
 // GET - Resetar produtos
-export async function GET(req: Request) {
+export async function GET() {
   try {
     // Backup dos produtos existentes
     console.log("[API Reset] Fazendo backup dos produtos existentes...");
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
         } else {
           console.error("[API Reset] Verificação falhou: os produtos não são um array");
         }
-      } catch (e) {
+      } catch {
         console.error("[API Reset] Verificação falhou: JSON inválido");
       }
     } else {

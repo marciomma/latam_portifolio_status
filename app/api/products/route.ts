@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { getFromRedis, setToRedis } from "@/lib/data";
+import { setToRedis } from "@/lib/data";
 import { PortfolioService } from "@/services/portfolio-service";
-import type { Product } from "@/types/database";
 
 // GET - Obter todos os produtos
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const products = await PortfolioService.getProducts();
     console.log(`[API] GET /api/products - Retornando ${products.length} produtos`);

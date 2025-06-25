@@ -7,10 +7,15 @@ const isModernRecord = (id: string) => {
   return id.startsWith('view-') && id.split('-').length > 2 && !id.match(/^view-prod-\d+$/);
 };
 
+interface PortfolioRecord {
+  id: string;
+  [key: string]: unknown;
+}
+
 export async function POST() {
   try {
     // Get all portfolio status data
-    const portfolioData = await redis.get('portfolioStatusView') as any[];
+    const portfolioData = await redis.get('portfolioStatusView') as PortfolioRecord[] | null;
     
     if (!Array.isArray(portfolioData)) {
       return NextResponse.json({ 

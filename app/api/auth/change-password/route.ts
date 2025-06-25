@@ -37,7 +37,7 @@ async function checkUserAuth(request: NextRequest): Promise<{ isAuthenticated: b
     }
 
     return { isAuthenticated: true, user };
-  } catch (error) {
+  } catch {
     return { isAuthenticated: false, user: null, error: 'Authentication error' };
   }
 }

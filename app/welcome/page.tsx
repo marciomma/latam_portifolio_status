@@ -2,14 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  [key: string]: unknown;
+}
 
 export default function WelcomePage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     // Check if user is logged in
@@ -46,7 +52,7 @@ export default function WelcomePage() {
               Hello {user.name}! 👋
             </p>
             <p className="text-gray-600">
-              You're successfully logged in and ready to access the Direct Market Portfolio Management Dashboard.
+              You&apos;re successfully logged in and ready to access the Direct Market Portfolio Management Dashboard.
             </p>
           </div>
 

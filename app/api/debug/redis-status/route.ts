@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 
 // GET - Verificar status do Redis
-export async function GET(req: Request) {
+export async function GET() {
   try {
     console.log("[RedisStatus] Verificando conexão com Redis...");
     
@@ -47,7 +47,15 @@ export async function GET(req: Request) {
     }
     
     // Tentar obter dados de produtos
-    let products: Record<string, any> | null = null;
+    interface ProductsInfo {
+      count?: number;
+      type: string;
+      sample?: unknown;
+      length?: number;
+      value?: unknown;
+    }
+    
+    let products: ProductsInfo | null = null;
     let productsError: string | null = null;
     
     try {
@@ -67,7 +75,7 @@ export async function GET(req: Request) {
               type: "string (parsed JSON)",
               sample: Array.isArray(parsed) ? parsed.slice(0, 2) : parsed
             };
-          } catch (e) {
+          } catch {
             products = {
               type: "string (not JSON)",
               length: productsData.length,
