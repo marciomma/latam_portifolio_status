@@ -105,6 +105,15 @@ class MemoryCache<T> {
   }
 }
 
+// Define interfaces for cached data types
+interface PortfolioData {
+  [key: string]: unknown;
+}
+
+interface CountryData {
+  [key: string]: unknown;
+}
+
 // Create memory caches for hot data
-export const portfolioCache = new MemoryCache<any>(30); // 30 seconds TTL
-export const countriesCache = new MemoryCache<any>(300); // 5 minutes TTL 
+export const portfolioCache = new MemoryCache<PortfolioData>(30); // 30 seconds TTL
+export const countriesCache = new MemoryCache<CountryData>(300); // 5 minutes TTL 

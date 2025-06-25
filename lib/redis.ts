@@ -116,7 +116,7 @@ export const redis = {
     return null
   },
   
-  async set(key: string, value: any) {
+  async set(key: string, value: unknown) {
     const client = getRedisClient()
     if (!client) {
       console.error(`[Redis] Cliente não inicializado ao tentar SET ${key}`)

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, pbkdf2Sync } from 'crypto';
+import { randomBytes, pbkdf2Sync } from 'crypto';
 
 /**
  * Password utility functions using Node.js crypto
