@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LogOut, User, Settings, Code, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { LogOut, User, Code, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,10 +35,18 @@ const changePasswordSchema = z.object({
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  [key: string]: unknown;
+}
+
 export function SiteHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -114,7 +122,7 @@ export function SiteHeader() {
       } else {
         setPasswordMessage({ type: 'error', text: result.message || 'Failed to change password' });
       }
-    } catch (error) {
+    } catch {
       setPasswordMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
       setIsChangingPassword(false);

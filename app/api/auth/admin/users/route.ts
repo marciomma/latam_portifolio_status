@@ -43,7 +43,7 @@ async function checkAdminAuth(request: NextRequest): Promise<{ isAdmin: boolean;
     }
 
     return { isAdmin: true, user };
-  } catch (error) {
+  } catch {
     return { isAdmin: false, user: null, error: 'Authentication error' };
   }
 }

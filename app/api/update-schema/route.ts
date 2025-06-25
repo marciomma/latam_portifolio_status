@@ -3,7 +3,7 @@ import { getFromRedis, setToRedis } from "@/lib/data";
 import { PortfolioService } from "@/services/portfolio-service";
 import type { StatusPortfolio } from "@/types/database";
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     // Obter todos os registros statusPortfolios
     const statusPortfolios = await getFromRedis<StatusPortfolio>('statusPortfolios') as StatusPortfolio[];

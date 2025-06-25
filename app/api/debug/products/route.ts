@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getFromRedis, setToRedis } from "@/lib/data";
+import { setToRedis } from "@/lib/data";
 import { redis } from "@/lib/redis";
 import { PortfolioService } from "@/services/portfolio-service";
 
 // GET - Verificar estado do Redis e retornar detalhes de diagnóstico
-export async function GET(req: Request) {
+export async function GET() {
   try {
     // Obter informações sobre a chave de produtos diretamente
     const rawProductsData = await redis.get('products');

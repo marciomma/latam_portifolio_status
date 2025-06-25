@@ -3,7 +3,7 @@ import { resetRedisClient } from "@/lib/redis";
 import { redis } from "@/lib/redis";
 
 // GET - Resetar o cliente Redis
-export async function GET(req: Request) {
+export async function GET() {
   try {
     console.log("[RedisReset] Resetando cliente Redis...");
     
