@@ -63,7 +63,7 @@ async function checkAdminAuth(request: NextRequest): Promise<{ isAdmin: boolean;
     }
 
     return { isAdmin: true, user };
-  } catch (error) {
+  } catch {
     return { isAdmin: false, user: null, error: 'Authentication error' };
   }
 }
@@ -270,7 +270,7 @@ export async function PUT(request: NextRequest) {
       if (status === 'pending') {
         updatedApprovedUsers = approvedUsers.filter((_, index) => index !== approvedIndex);
         // Remove approvedAt when moving to pending
-        const { approvedAt, ...userWithoutApprovedAt } = updatedUser;
+        const { approvedAt: _, ...userWithoutApprovedAt } = updatedUser;
         updatedPendingUsers.push(userWithoutApprovedAt);
       } else {
         updatedApprovedUsers[approvedIndex] = updatedUser;

@@ -48,7 +48,7 @@ async function checkAdminAuth(request: NextRequest): Promise<{ isAdmin: boolean;
     }
 
     return { isAdmin: true, user };
-  } catch (error) {
+  } catch {
     return { isAdmin: false, user: null, error: 'Authentication error' };
   }
 }
@@ -108,7 +108,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Return the new password only if it was generated
-    const response: any = {
+    interface ResetPasswordResponse {
+      success: boolean;
+      message: string;
+      newPassword?: string;
+    }
+
+    const response: ResetPasswordResponse = {
       success: true,
       message: 'Password reset successfully',
     };

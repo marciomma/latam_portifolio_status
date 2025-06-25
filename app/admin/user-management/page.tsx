@@ -16,7 +16,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   CheckCircle2, 
-  XCircle, 
   Users, 
   Clock, 
   Shield, 
@@ -67,13 +66,20 @@ interface UsersResponse {
   approvedCount: number;
 }
 
+interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'user' | 'admin';
+}
+
 export default function AdminUserManagementPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -153,11 +159,11 @@ export default function AdminUserManagementPage() {
           approvedCount: data.approvedCount
         });
       } else {
-        const error = await response.json();
-        setMessage({ type: 'error', text: error.message || 'Failed to fetch users' });
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.message || 'Failed to fetch users' });
       }
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
+    } catch {
+      console.error('Failed to fetch users');
       setMessage({ type: 'error', text: 'Failed to fetch users' });
     } finally {
       setIsLoading(false);
@@ -191,7 +197,7 @@ export default function AdminUserManagementPage() {
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to create user' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
       setActionLoading(null);
@@ -230,7 +236,7 @@ export default function AdminUserManagementPage() {
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to update user' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
       setActionLoading(null);
@@ -267,7 +273,7 @@ export default function AdminUserManagementPage() {
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to delete user' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
       setActionLoading(null);
@@ -320,7 +326,7 @@ export default function AdminUserManagementPage() {
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to reset password' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
       setActionLoading(null);
@@ -338,7 +344,7 @@ export default function AdminUserManagementPage() {
       try {
         await navigator.clipboard.writeText(resetPasswordResult.password);
         setMessage({ type: 'success', text: 'Password copied to clipboard' });
-      } catch (error) {
+      } catch {
         setMessage({ type: 'error', text: 'Failed to copy password' });
       }
     }

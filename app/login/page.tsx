@@ -92,7 +92,7 @@ export default function LoginPage() {
           text: result.message || 'Something went wrong. Please try again.',
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: 'error',
         text: 'Network error. Please check your connection and try again.',
@@ -129,7 +129,7 @@ export default function LoginPage() {
           text: result.message || 'Login failed. Please check your credentials.',
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: 'error',
         text: 'Network error. Please check your connection and try again.',
@@ -249,7 +249,7 @@ export default function LoginPage() {
                 </form>
 
                 <p className="text-sm text-gray-600 text-center">
-                  Don't have access yet?{' '}
+                  Don&apos;t have access yet?{' '}
                   <button
                     onClick={() => setActiveTab('signup')}
                     className="text-blue-600 hover:text-blue-800 font-medium"
@@ -386,7 +386,7 @@ export default function LoginPage() {
                   <p className="font-medium">What happens next?</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>Your request will be sent to authorized users</li>
-                    <li>You'll receive an email notification about the decision</li>
+                    <li>You&apos;ll receive an email notification about the decision</li>
                     <li>Once approved, you can log in with your email</li>
                   </ul>
                 </div>
