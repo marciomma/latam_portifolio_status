@@ -10,7 +10,6 @@ import { StatusTable } from "@/components/status-table";
 import { ProductsEditor } from "@/components/products-editor";
 import {ProductsClassificationEditor} from "@/components/products-classification-editor";
 import { CountriesEditor } from "@/components/countries-editor";
-import { PortfolioService } from "@/services/portfolio-service";
 import { StatusEditor } from "@/components/status-editor";
 
 import type {

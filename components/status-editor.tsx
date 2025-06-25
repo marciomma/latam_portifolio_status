@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Check, Plus, Save, Trash2, Eye, ArrowDown, ArrowUp } from "lucide-react"
+import { Check, Plus, Save, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PortfolioService } from "@/services/portfolio-service"
 import type { Country, PortfolioStatusView, Procedure, Status, Product, ProductType } from "@/types/database"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +19,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 interface StatusEditorProps {
@@ -49,7 +47,8 @@ export function StatusEditor({
   procedures, 
   statuses, 
   products, 
-  productTypes, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  productTypes, // Unused parameter
   onSaveComplete 
 }: StatusEditorProps) {
   const [countryLines, setCountryLines] = useState<CountryLineItem[]>([])
@@ -456,7 +455,7 @@ export function StatusEditor({
   }
   
   // Obter produtos disponíveis (que ainda não foram escolhidos para este país)
-  const getAvailableProducts = (currentLineId: string) => {
+  const getAvailableProducts = () => {
     // Return all products, allowing the same product to be used multiple times
     return products;
   }
@@ -643,14 +642,14 @@ export function StatusEditor({
             {sortedLines.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                  No products assigned to this country. Click "Add Product" to get started.
+                  No products assigned to this country. Click &quot;Add Product&quot; to get started.
                 </TableCell>
               </TableRow>
             ) : (
               sortedLines.map(line => {
                 const product = getProduct(line.productId);
                 const procedure = product ? getProcedure(product.procedureId) : undefined;
-                const availableProducts = getAvailableProducts(line.id);
+                const availableProducts = getAvailableProducts();
                 
                 return (
                   <TableRow key={line.id} className={line.isModified ? "bg-blue-50" : undefined}>
@@ -669,14 +668,11 @@ export function StatusEditor({
                           {availableProducts
                             .slice()
                             .sort((a, b) => a.name.localeCompare(b.name))
-                            .map(product => {
-                              const procedure = getProcedure(product.procedureId);
-                              return (
+                            .map(product => (
                                 <SelectItem key={product.id} value={product.id}>
                                   {product.name}
                                 </SelectItem>
-                              );
-                            })}
+                              ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -774,7 +770,7 @@ export function StatusEditor({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Product Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the product "{productToDelete?.productName}" from {countryName}? 
+              Are you sure you want to delete the product &quot;{productToDelete?.productName}&quot; from {countryName}? 
               This action cannot be undone and will permanently remove the product from the database.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PortfolioService } from "@/services/portfolio-service"
 import { useUpdateStatus } from "@/hooks/usePortfolioData"
 import type { Country, PortfolioStatusView, Procedure, Status } from "@/types/database"
 
@@ -46,14 +45,14 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
     )
   }, [portfolioData])
 
-  // Get unique product types based on procedure filter
-  const productTypes = Array.from(
-    new Set(
-      portfolioData
-        .filter((item) => procedureFilter === "all" || item.procedureId === procedureFilter)
-        .map((item) => ({ id: item.productTypeId, name: item.productType })),
-    ),
-  )
+  // Get unique product types based on procedure filter (commented out as not currently used)
+  // const productTypes = Array.from(
+  //   new Set(
+  //     portfolioData
+  //       .filter((item) => procedureFilter === "all" || item.procedureId === procedureFilter)
+  //       .map((item) => ({ id: item.productTypeId, name: item.productType })),
+  //   ),
+  // )
 
   // Apply filters to get filtered data
   const filteredData = editableData.filter((item) => {
@@ -376,7 +375,7 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
 
                         {countries.flatMap((country) => {
                           // Tier 1 cell
-                          const tier1Item = tier1Items.find((item) => true) // Get first item if exists
+                          const tier1Item = tier1Items.find(() => true) // Get first item if exists
                           const tier1Status = tier1Item?.countryStatuses.find((cs) => cs.countryId === country.id)
                           const tier1StatusObj = tier1Status
                             ? statuses.find((s) => s.id === tier1Status.statusId) || statuses[4]
@@ -384,7 +383,7 @@ export function StatusUpdateForm({ portfolioData, countries, procedures, statuse
                           const tier1IsModified = tier1Item?.modifiedStatuses?.[country.id] !== undefined
 
                           // Tier 2 cell
-                          const tier2Item = tier2Items.find((item) => true) // Get first item if exists
+                          const tier2Item = tier2Items.find(() => true) // Get first item if exists
                           const tier2Status = tier2Item?.countryStatuses.find((cs) => cs.countryId === country.id)
                           const tier2StatusObj = tier2Status
                             ? statuses.find((s) => s.id === tier2Status.statusId) || statuses[4]

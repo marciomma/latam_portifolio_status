@@ -269,9 +269,10 @@ export async function PUT(request: NextRequest) {
       // If status changed to pending, move to pending list
       if (status === 'pending') {
         updatedApprovedUsers = approvedUsers.filter((_, index) => index !== approvedIndex);
-        // Remove approvedAt when moving to pending
-        const { approvedAt: _, ...userWithoutApprovedAt } = updatedUser;
-        updatedPendingUsers.push(userWithoutApprovedAt);
+        // Remove approvedAt when moving to pending and add to pending list
+        const userForPending = { ...updatedUser };
+        delete userForPending.approvedAt;
+        updatedPendingUsers.push(userForPending);
       } else {
         updatedApprovedUsers[approvedIndex] = updatedUser;
       }

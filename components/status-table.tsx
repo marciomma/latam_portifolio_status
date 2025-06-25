@@ -239,7 +239,7 @@ export function StatusTable({
                 // Calculate rows per procedure
                 Object.entries(procedures).forEach(([proc, productTypes]) => {
                   let count = 0;
-                  Object.entries(productTypes).forEach(([prodType, _]) => {
+                  Object.entries(productTypes).forEach(([prodType]) => {
                     if (validRowsInCategory.has(`${proc}-${prodType}`)) {
                       count++;
                     }
@@ -251,7 +251,7 @@ export function StatusTable({
 
                 return Object.entries(procedures)
                   .sort(([procedureA], [procedureB]) => procedureA.localeCompare(procedureB))
-                  .flatMap(([procedure, productTypes], procIndex) => {
+                  .flatMap(([procedure, productTypes]) => {
                     // If this procedure doesn't have any valid rows, skip it
                     if (!validProcedureRows.has(procedure)) return [];
                     
@@ -260,7 +260,7 @@ export function StatusTable({
 
                     return Object.entries(productTypes)
                       .sort(([productTypeA], [productTypeB]) => productTypeA.localeCompare(productTypeB))
-                      .flatMap(([productType, products], typeIndex) => {
+                      .flatMap(([productType, products]) => {
                         if (products.length === 0) return [];
                         
                         // Check if this row is valid (has products for any country)
@@ -323,7 +323,7 @@ export function StatusTable({
                               );
 
                               // Get status for each product
-                              const getStatus = (product: PortfolioStatusView, tier: string) =>
+                              const getStatus = (product: PortfolioStatusView) =>
                                 product.countryStatuses.find((cs: PortfolioStatusView["countryStatuses"][number]) => cs.countryId === country.id);
 
                               return [
@@ -339,7 +339,7 @@ export function StatusTable({
                                   {tier1ProductsForCountry.length > 0 ? (
                                     <div className="flex flex-col gap-1 items-center">
                                       {tier1ProductsForCountry.map((product) => {
-                                        const status = getStatus(product, 'Tier 1');
+                                        const status = getStatus(product);
                                         const textColor = isDarkColor(status?.statusColor) ? 'white' : 'inherit';
                                         return (
                                           <div
@@ -376,7 +376,7 @@ export function StatusTable({
                                   {tier2ProductsForCountry.length > 0 ? (
                                     <div className="flex flex-col gap-1 items-center">
                                       {tier2ProductsForCountry.map((product) => {
-                                        const status = getStatus(product, 'Tier 2');
+                                        const status = getStatus(product);
                                         const textColor = isDarkColor(status?.statusColor) ? 'white' : 'inherit';
                                         return (
                                           <div

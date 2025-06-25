@@ -11,7 +11,7 @@ export async function getFromRedis<T>(key: string): Promise<T[]> {
     try {
       return JSON.parse(data) as T[]
     } catch {
-      // string não-JSON (ex.: “OK”); retorna vazio
+      // string não-JSON (ex.: "OK"); retorna vazio
       return []
     }
   }
@@ -19,8 +19,6 @@ export async function getFromRedis<T>(key: string): Promise<T[]> {
   return data as T[]
 }
 
-export async function setToRedis<T>(key: string, value: T[]): Promise<"OK" | null> {
-  // O client @upstash/redis já faz JSON.stringify para objetos/arrays,
-  // então não precisamos (nem devemos) envolver em JSON.stringify aqui.
+export async function setToRedis<T>(key: string, value: T[]): Promise<unknown> {
   return await redis.set(key, value)
 }

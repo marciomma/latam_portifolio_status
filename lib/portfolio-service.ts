@@ -52,7 +52,7 @@ export class PortfolioService {
     }))
   }
 
-  static async updateStatus(productId: string, countryId: string, statusId: string, notes?: string): Promise<boolean> {
+  static async updateStatus(productId: string, countryId: string, statusId: string): Promise<boolean> {
     // Esta função ainda está mockada; podemos persistir no Redis depois
     console.log(`[Simulado] Atualizando status de ${productId} em ${countryId} para ${statusId}`)
     return true
@@ -60,7 +60,7 @@ export class PortfolioService {
 
   static async bulkUpdateStatus(updates: { productId: string, countryId: string, statusId: string, notes?: string }[]): Promise<boolean> {
     for (const update of updates) {
-      await this.updateStatus(update.productId, update.countryId, update.statusId, update.notes)
+      await this.updateStatus(update.productId, update.countryId, update.statusId)
     }
     return true
   }

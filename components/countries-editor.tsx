@@ -7,7 +7,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PortfolioService } from "@/services/portfolio-service"
 import type { Country } from "@/types/database"
 
 // Extend Country type for UI state
@@ -249,7 +248,7 @@ export function CountriesEditor() {
   }
 
      // Função para alterar valores do país
-   const handleCountryChange = (countryId: string, field: keyof EditableCountry, value: any) => {
+   const handleCountryChange = (countryId: string, field: keyof EditableCountry, value: string | boolean | number) => {
      // Verificação especial para o campo 'name' para evitar duplicidade
      if (field === 'name') {
        value = String(value); // Não aplicar trim aqui para permitir espaços durante digitação

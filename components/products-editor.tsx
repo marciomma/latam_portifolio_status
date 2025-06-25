@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PortfolioService } from "@/services/portfolio-service"
 import type { Procedure, ProductType, Product } from "@/types/database"
 
 interface ProductsEditorProps {
@@ -198,7 +197,7 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
   }
 
   // Função para alterar valores do produto
-  const handleProductChange = (productId: string, field: keyof EditableProduct, value: any) => {
+  const handleProductChange = (productId: string, field: keyof EditableProduct, value: string | boolean) => {
     // Verificação especial para o campo 'name' para evitar duplicidade
     if (field === 'name') {
       // Converter para maiúsculas
@@ -528,8 +527,9 @@ export function ProductsEditor({ procedures, productTypes }: ProductsEditorProps
           <TableBody>
             {sortedProducts.length > 0 ? (
               sortedProducts.map((product) => {
-                const procedure = procedures.find(p => p.id === product.procedureId);
-                const productType = productTypes.find(pt => pt.id === product.productTypeId);
+                // These variables were found for future use but aren't currently needed
+                // const procedure = procedures.find(p => p.id === product.procedureId);
+                // const productType = productTypes.find(pt => pt.id === product.productTypeId);
                 
                 return (
                   <TableRow 

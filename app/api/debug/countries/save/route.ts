@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     // Salvar no Redis, garantindo que seja armazenado como string JSON
     await redis.del('countries');
     const jsonString = JSON.stringify(updatedCountries);
-    const result = await redis.set('countries', jsonString);
+    await redis.set('countries', jsonString);
     
     // Verificar se os dados foram salvos corretamente
     const verification = await redis.get('countries');

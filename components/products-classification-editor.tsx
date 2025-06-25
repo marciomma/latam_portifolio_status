@@ -7,8 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PortfolioService } from "@/services/portfolio-service";
-import type { Procedure } from "@/types/database";
+
+interface ApiProcedure {
+  id: string;
+  name: string;
+  category: string;
+  isActive: boolean;
+}
 
 type EditableCategory = {
   id: string;
@@ -62,7 +67,7 @@ export function ProductsClassificationEditor() {
       const proceduresData = await response.json();
       
       // Extract unique categories from procedures
-      const uniqueCategories = Array.from(new Set(proceduresData.map((proc: any) => proc.category)));
+      const uniqueCategories = Array.from(new Set(proceduresData.map((proc: ApiProcedure) => proc.category)));
 
       const categoriesData: EditableCategory[] = uniqueCategories.map((category) => {
         // Generate a stable ID based on the category name
@@ -77,7 +82,7 @@ export function ProductsClassificationEditor() {
         }
       });
 
-      const proceduresData2: EditableProcedure[] = proceduresData.map((procedure: any) => ({
+      const proceduresData2: EditableProcedure[] = proceduresData.map((procedure: ApiProcedure) => ({
         id: procedure.id,
         name: procedure.name,
         category: procedure.category,
@@ -162,7 +167,7 @@ export function ProductsClassificationEditor() {
     }
   };
 
-  const handleProcedureChange = (procedureId: string, field: keyof EditableProcedure, value: any) => {
+  const handleProcedureChange = (procedureId: string, field: keyof EditableProcedure, value: string | boolean) => {
     // Special check for the 'name' field to avoid duplicates
     if (field === 'name') {
       const lowerCaseValue = String(value).trim().toLowerCase();
@@ -194,8 +199,6 @@ export function ProductsClassificationEditor() {
         : prev.filter(id => id !== procedureId)
     );
   };
-
-
 
   const handleAddProcedure = () => {
     const procedureId = `procedure-${Date.now()}`;
