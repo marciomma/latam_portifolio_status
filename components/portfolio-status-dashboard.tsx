@@ -85,7 +85,6 @@ export default function PortfolioStatusDashboard() {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [timestamp, setTimestamp] = useState(0);
   const statusTableRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
@@ -137,11 +136,6 @@ export default function PortfolioStatusDashboard() {
     }
     setMounted(true);
     loadData();
-  }, [timestamp]);
-
-  // Initialize timestamp on client-side only to avoid hydration mismatch
-  useEffect(() => {
-    setTimestamp(Date.now());
   }, []);
 
   // Salvar estado sempre que houver mudanças (apenas após inicialização)
@@ -205,7 +199,7 @@ export default function PortfolioStatusDashboard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('reload')) {
-      setTimestamp(Date.now());
+      loadData();
       
       const newUrl = window.location.pathname + 
         window.location.search.replace(/(\?|&)reload=[^&]*(&|$)/, '$1').replace(/\?$/, '');
@@ -220,7 +214,7 @@ export default function PortfolioStatusDashboard() {
 
   // Função para recarregar dados mantendo o estado atual
   const handleRefreshData = () => {
-    setTimestamp(Date.now());
+    loadData();
   };
 
   const toggleCountry = (countryId: string) => {
@@ -480,6 +474,7 @@ export default function PortfolioStatusDashboard() {
                 products={products}
                 productTypes={productTypes}
                 onSaveComplete={() => setTimestamp(Date.now())}
+                onSaveComplete={() => loadData()}
               />
             </CardContent>
           </Card>
