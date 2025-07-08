@@ -85,7 +85,7 @@ export default function PortfolioStatusDashboard() {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [timestamp, setTimestamp] = useState(Date.now());
+  const [timestamp, setTimestamp] = useState(0);
   const statusTableRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
@@ -138,6 +138,11 @@ export default function PortfolioStatusDashboard() {
     setMounted(true);
     loadData();
   }, [timestamp]);
+
+  // Initialize timestamp on client-side only to avoid hydration mismatch
+  useEffect(() => {
+    setTimestamp(Date.now());
+  }, []);
 
   // Salvar estado sempre que houver mudanças (apenas após inicialização)
   useEffect(() => {
